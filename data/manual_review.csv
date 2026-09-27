@@ -1,0 +1,1309 @@
+﻿finding_id,model,rule_id,cwe,file,start_line,snippet_clean,fix_code,explanation_text,patch_mode,fix_trivial,fix_correct,explanation_correct,note
+1,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,javascript.express.security.audit.express-check-directory-listing.express-check-directory-listing,CWE-548,corpus/juice-shop/server.ts,292,"                                                                                                             
+  app.use('/ftp', serveIndexMiddleware, serveIndex('ftp', { icons: true }))                                                         
+  app.use('/ftp(?!/quarantine)/:file', servePublicFiles())                                                         
+  app.use('/ftp/quarantine/:file', serveQuarantineFiles())                                                            
+
+  app.use('/.well-known', serveIndexMiddleware, serveIndex('.well-known', { icons: true, view: 'details' }))
+  app.use('/.well-known', express.static('.well-known'))
+
+                                          
+  app.use('/encryptionkeys', serveIndexMiddleware, serveIndex('encryptionkeys', { icons: true, view: 'details' }))
+  app.use('/encryptionkeys/:file', serveKeyFiles())
+","app.use('/ftp', servePublicFiles());
+app.use('/ftp(?!/quarantine)/:file', serveQuarantineFiles());
+app.use('/.well-known', express.static('.well-known'));
+app.use('/encryptionkeys', serveKeyFiles());","1. Прозорість: Проблема полягає в тому, що в налаштуваннях Express-застосунку ввімкнено перелік директорій (directory listing) для папок `/ftp`, `/ftp(?!/quarantine)/:file`, `/encryptionkeys`, `/.well-known`. Це може призвести до розкриття інформації про внутрішню структуру файлової системи та наявність конфіденційних файлів.
+
+2. Обґрунтування: Ввімкнення переліку директорій дозволяє будь-кому, хто має доступ до веб-сервера, переглянути вміст папок. Це може бути використано для отримання інформації про структуру файлової системи, наявність конфіденційних файлів, а також для пошуку вразливостей у додатку.
+
+3. Дієвість: Щоб усунути цю вразливість, необхідно вимкнути перелік директорій для папок `/ftp`, `/ftp(?!/quarantine)/:file`, `/encryptionkeys`, `/.well-known`. Це можна зробити шляхом видалення рядків `serveIndexMiddleware` та `serveIndex` з відповідних маршрутів.
+
+Виправлений код:
+
+Цей код вимикає перелік директорій для зазначених папок, запобігаючи розкриттю інформації про внутрішню структуру файлової системи.",aligned,1,0,1,"serveIndex прибрано, але маршрути переплутано: /ftp -> servePublicFiles, /:file -> serveQuarantineFiles; втрачено маршрут /ftp/quarantine"
+4,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.django.security.injection.request-data-write.request-data-write,CWE-93,corpus/pygoat/introduction/apis.py,130,"@csrf_exempt
+def A6_disscussion_api_2(request):
+    if request.method != 'POST':
+        return JsonResponse({""message"":""method not allowed""},status = 405)
+    try:
+        code = request.POST.get('code')
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, ""playground/A6/utility.py"")
+        f = open(filename,""w"")
+        f.write(code)
+        f.close()
+    except:
+        return JsonResponse({""message"":""missing code""},status = 400)
+    return JsonResponse({""message"":""success""},status = 200)","@csrf_exempt
+def A6_disscussion_api_2(request):
+    if request.method != 'POST':
+        return JsonResponse({""message"":""method not allowed""},status = 405)
+    try:
+        code = request.POST.get('code')
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, ""playground/A6/utility.py"")
+        with open(filename, ""w"") as f:
+            f.write(code.replace(""\'"", ""\\\'""))
+    except:
+        return JsonResponse({""message"":""missing code""},status = 400)
+    return JsonResponse({""message"":""success""},status = 200)","1. Прозорість: Проблема знаходиться у функції `A6_disscussion_api_2` в рядку `f.write(code)`. Тут безпосередньо записується в файл `playground/A6/utility.py` код, переданий у запиті `request.POST.get('code')`.
+
+2. Обґрунтування: Ця вразливість пов'язана з потенційним ризиком ін'єкції коду. Якщо користувач зможе контролювати значення `code`, він може вставити шкідливий код у файл `utility.py`, що може призвести до виконання несанкціонованих дій, таких як видалення файлів, зміна конфігурації або навіть отримання доступу до чутливих даних.
+
+3. Дієвість: Виправлений код:
+
+У виправленому коді, функція `replace(""\'"", ""\\\'"")` використовується для заміни одинарних лапок на подвійні, що запобігає потенційній ін'єкції коду. Це робиться для того, щоб уникнути можливості впровадження шкідливого коду в файл `utility.py`. Замість безпосереднього запису коду в файл, він тепер замінює одинарні лапки на подвійні, що робить його безпечнішим.",aligned,0,0,0,екранування лапок не усуває довільний запис коду у .py; пояснення механізму хибне
+5,gemma4:e2b,javascript.express.security.audit.express-session-hardcoded-secret.express-session-hardcoded-secret,CWE-798,corpus/dvna/server.js,24,"                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))
+
+","app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback_secret',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))","1. Прозорість: Проблема виявлена у файлі конфігурації застосунку, де секрет сесії (`secret`) зберігається безпосередньо у вихідному коді. Це порушує принцип безпеки, оскільки конфіденційна інформація розміщена у відкритому доступі.
+2. Обґрунтування: Жорстко закодовані облікові дані, такі як секрети сесії, можуть бути легко викрадені будь-яким, хто має доступ до вихідного коду. Це дозволяє зловмисникам маніпулювати сесіями користувачів або виконувати дії від імені застосунку. Це створює пряму загрозу конфіденційності даних.
+3. Дієвість:
+
+Використання змінної середовища (`process.env.SESSION_SECRET`) забезпечує більш безпечне зберігання секрету. Якщо змінна середовища відсутня, використовується резервний секрет, що запобігає помилкам під час розгортання.",aligned,0,1,1,секрет у змінній оточення; fallback-значення лишає слабке замовчування
+5,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,javascript.express.security.audit.express-session-hardcoded-secret.express-session-hardcoded-secret,CWE-798,corpus/dvna/server.js,24,"                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))
+
+","app.use(session({
+  secret: process.env.SESSION_SECRET || 'default_secret',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}));","1. Прозорість: Проблема знаходиться у рядку `secret: 'keyboard cat'`, де явно вказано секретний ключ для модуля `express-session`. Цей секретний ключ є явно вказаним у коді, що робить його вразливим до витоку.
+
+2. Обґрунтування: Атака, яка може бути здійснена, полягає в тому, що зловмисник може отримати доступ до цього секретного ключа, якщо він отримає доступ до коду. Це може призвести до несанкціонованого доступу до системи, оскільки зловмисник зможе підробити сесії користувачів.
+
+3. Дієвість:
+
+Пояснення: У виправленому коді секретний ключ тепер отримується з змінної середовища `SESSION_SECRET`. Якщо змінна середовища не встановлена, використовується за замовчуванням `default_secret`. Це значно підвищує безпеку, оскільки секретний ключ більше не зберігається явно в коді.
+
+Вразливість (Rule ID): javascript.express.security.audit.express-session-hardcoded-secret.express-session-hardcoded-secret
+Опис (Raw Message): A hard-coded credential was detected. It is not recommended to store credentials in source-code, as this risks secrets being leaked and used by either an internal or external malicious adversary. It is recommended to use environment variables to securely provide credentials or retrieve credentials from a secure vault or HSM (Hardware Security Module).
+Код (Snippet):
+                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))",aligned,0,1,1,аналогічно; fallback 'default_secret'
+6,gemma4:e2b,javascript.express.security.audit.express-cookie-settings.express-cookie-session-default-name,CWE-522,corpus/NodeGoat/server.js,78,"                                  
+        extended: false
+    }));
+
+                                                         
+    app.use(session({
+                            
+                                                           
+            
+        secret: cookieSecret,
+                                       
+        saveUninitialized: true,
+        resave: true
+          
+                                          
+                                  
+                         
+          
+
+          
+                           
+                             
+                 
+                          
+                                                                    
+                           
+         
+          
+
+    }));
+
+      
+                        
+                                     
+                    
+","app.use(session({
+            secret: cookieSecret,
+            saveUninitialized: true,
+            resave: true,
+            cookie: {
+                name: 'session_id'
+            }
+        }));","1. Прозорість: Проблема виявлена у конфігурації середовища сесій бібліотеки `express-session`. Використання стандартної назви для кукі сесії створює потенційну інформаційну витік. Це порушує принцип мінімальних привілеїв у контексті безпеки.
+2. Обґрунтування: Використання стандартної назви сесійного кукі може дозволити зловмиснику ідентифікувати фреймворк та версію сервера. Це допомагає у фазванні атак, наприклад, для пошуку відомих вразливостей. Це може спростити наступні атаки на застосунок.
+3. Дієвість:
+
+Виправлений код явно встановлює назву кукі сесії. Це запобігає використанню стандартної та потенційно небезпечної назви. Використання унікальної назви зменшує інформацію, яку зловмисник може отримати.",aligned,1,0,1,"name належить кореню session(), а не cookie{} — правило обійдено, назва кукі не змінюється"
+6,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,javascript.express.security.audit.express-cookie-settings.express-cookie-session-default-name,CWE-522,corpus/NodeGoat/server.js,78,"                                  
+        extended: false
+    }));
+
+                                                         
+    app.use(session({
+                            
+                                                           
+            
+        secret: cookieSecret,
+                                       
+        saveUninitialized: true,
+        resave: true
+          
+                                          
+                                  
+                         
+          
+
+          
+                           
+                             
+                 
+                          
+                                                                    
+                           
+         
+          
+
+    }));
+
+      
+                        
+                                     
+                    
+","app.use(session({
+    secret: cookieSecret,
+    saveUninitialized: true,
+    resave: true,
+    cookie: {
+        name: 'session_id',
+        secure: true,
+        httpOnly: true,
+        maxAge: 3600000
+    }
+}));","1. Прозорість: Проблема знаходиться у файлі `app.js` в блоці коду, що визначає middleware для сесії. Звіт SAST вказує на використання за замовчуванням імені файлу cookie для сесії.
+
+2. Обґрунтування: За замовчуванням, сесія використовує ім'я `connect.sid`, що є загальновідомим і може бути використаний зловмисниками для ідентифікації сервера та проведення атак, таких як перехоплення сесії. Це робить застосунок вразливим до атак, пов'язаних з ідентифікацією сервера.
+
+3. Дієвість: Виправлений код:
+
+Пояснення: Додано властивість `cookie` до об'єкта опцій сесії. Вона дозволяє встановити власне ім'я файлу cookie для сесії, у цьому випадку `session_id`. Також встановлено `secure: true`, щоб забезпечити безпечне з'єднання HTTPS, і `httpOnly: true`, щоб запобігти доступу до файлу cookie з JavaScript. Максимальний термін дії файлу cookie встановлено на 1 годину (3600000 мілісекунд).",aligned,1,0,1,те саме розміщення name у cookie{}; додано secure/httpOnly як бонус
+7,gemma4:e2b,python.lang.security.audit.md5-used-as-password.md5-used-as-password,CWE-327,corpus/pygoat/introduction/mitre.py,161,"    if request.method == 'GET':
+        return render(request, 'mitre/csrf_lab_login.html')
+    elif request.method == 'POST':
+        password = request.POST.get('password')
+        username = request.POST.get('username')
+        password = md5(password.encode()).hexdigest()
+        User = CSRF_user_tbl.objects.filter(username=username, password=password)
+        if User:
+            payload ={
+                'username': username,
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=300),
+","password = request.POST.get('password')
+        username = request.POST.get('username')
+        password_hash = hashlib.scrypt.hash(password.encode(), salt=os.urandom(16), n=32)
+        User = CSRF_user_tbl.objects.filter(username=username, password=password_hash)","1. Прозорість: Проблема виявлена у фрагменті коду, де пароль обробляється та хешується. Використовується функція `md5()` для створення хешу пароля, що є небезпечним. Це порушує вимоги до безпечного зберігання облікових даних.
+2. Обґрунтування: MD5 є слабким алгоритмом хешування, який чутливий до колізій та легко піддається атакам з перебором (brute-force) або атакам словника. Це означає, що зловмисник може швидко розкрити хеш пароля, якщо він отримає доступ до бази даних.
+3. Дієвість:
+
+Використовується `hashlib.scrypt` для створення хешу пароля з випадковим соленим значенням. Це забезпечує значно більшу стійкість до атак перебору.",aligned,0,0,1,hashlib.scrypt.hash не існує (правильно hashlib.scrypt(...) з n/r/p); сіль не зберігається -> вхід неможливий
+8,gemma4:e2b,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,123,"        pass
+    
+    return redirect(url_for('lab'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)                                                 ","if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)","1. Прозорість: Проблема виявлена у коді, де застосовується режим налагодження (debug=True) при запуску Flask-додатку. Це створює потенційну можливість витоку чутливої інформації у середовищі виконання.
+2. Обґрунтування: У режимі налагодження Flask розкриває детальні помилки та інформацію про структуру застосунку при помилках. Це може включати шляхи файлів, змінні середовища та внутрішню логіку, що є критично небезпечним у продакшені. Це дозволяє зловмиснику отримати значну інформацію для подальших атак.
+3. Дієвість:
+
+Видалення параметра `debug=True` запобігає витоку чутливої інформації. Це забезпечує безпечний запуск застосунку у продакшені. Режим налагодження слід використовувати лише для розробки.",aligned,0,1,1,debug прибрано повністю
+8,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,123,"        pass
+    
+    return redirect(url_for('lab'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)                                                 ","if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)","1. Прозорість: Проблема полягає в тому, що в коді, в рядку `app.run(host='0.0.0.0', port=5000, debug=True)`, встановлено значення `debug=True`. Це дозволяє виводити детальні повідомлення про роботу програми, що може бути небезпечно в продукційному середовищі, оскільки розкриває внутрішню інформацію про функціонування додатку.
+
+2. Обґрунтування: Включення `debug=True` в середовищі виробництва може призвести до розкриття конфіденційної інформації, такої як секретні ключі, паролі, або інші дані, які не повинні бути доступні для зовнішніх сторін. Це може бути використано зловмисниками для отримання несанкціонованого доступу до системи.
+
+3. Дієвість: Виправлений код:
+
+У цьому виправленому коді `debug=False` встановлено за замовчуванням, що запобігає виведенню детальних повідомлень про роботу програми. Це робить додаток безпечнішим для використання в продукційному середовищі.",aligned,0,1,1,debug=False
+9,gemma4:e2b,javascript.lang.security.audit.code-string-concat.code-string-concat,CWE-95,corpus/NodeGoat/app/routes/contributions.js,33,"    this.handleContributionsUpdate = (req, res, next) => {
+
+                              
+                                                 
+        const preTax = eval(req.body.preTax);
+        const afterTax = eval(req.body.afterTax);
+        const roth = eval(req.body.roth);
+
+          
+                                                                              
+                                                 
+","const preTax = req.body.preTax;
+        const afterTax = req.body.afterTax;
+        const roth = req.body.roth;","1. Прозорість: Проблема виявлена у рядку, де використовуються функції `eval()` для виконання даних, отриманих з вхідного запиту `req.body`. Це пряме використання `eval` з потенційно неперевіреними вхідними даними.
+2. Обґрунтування: Використання `eval()` з даних, що надходять від користувача (через HTTP-запит), створює критичну вразливість до виконання коду. Це дозволяє атакуватору вбудовувати будь-який JavaScript-код, який буде виконаний у контексті вашого сервера. Це може призвести до виконання несанкціонованих команд або зміни стану програми.
+3. Дієвість:
+
+Видалення `eval()` усуває пряму загрозу виконання небезпечного коду. Якщо необхідна динамічна обробка, слід використовувати безпечні методи, такі як парсинг чисел або використання безпечних JSON-об'єктів.",aligned,1,0,1,"eval прибрано, але значення лишаються рядками -> арифметика зламається; потрібен parseFloat"
+10,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.django.security.injection.code.user-eval.user-eval,CWE-95,corpus/pygoat/introduction/mitre.py,217,"
+                           
+@csrf_exempt
+def mitre_lab_25_api(request):
+    if request.method == ""POST"":
+        expression = request.POST.get('expression')
+        result = eval(expression)
+        return JsonResponse({'result': result})
+    else:
+        return redirect('/mitre/25/lab/')
+
+
+","@csrf_exempt
+def mitre_lab_25_api(request):
+    if request.method == ""POST"":
+        expression = request.POST.get('expression')
+        result = expression_evaluator(expression)
+        return JsonResponse({'result': result})
+    else:
+        return redirect('/mitre/25/lab/')","1. Прозорість: Проблема знаходиться в рядку `result = eval(expression)`. Цей рядок викликає функцію `eval`, яка виконує будь-який код Python, переданий їй у вигляді рядка. Це може призвести до виконання шкідливого коду, якщо `expression` містить небезпечні вхідні дані.
+
+2. Обґрунтування: Функція `eval` є дуже небезпечною, оскільки вона може виконувати будь-який код Python. Якщо користувач введе шкідливий вираз, `eval` його виконає, що може призвести до виконання шкідливого коду на сервері, отримання доступу до конфіденційних даних або навіть до повної втрати контролю над сервером.
+
+3. Дієвість:
+
+У виправленому коді функція `eval` замінена на `expression_evaluator`, яка є безпечною бібліотекою для виконання виразів. Це гарантує, що лише безпечні вирази будуть виконані, і запобігає виконанню шкідливого коду.
+
+**Пояснення:**
+
+Замість використання `eval`, який є небезпечним, ми використовуємо `expression_evaluator`, яка є безпечною бібліотекою для виконання виразів. Це дозволяє нам безпечно обробляти вхідні дані користувача, не наражаючи сервер на ризик виконання шкідливого коду.
+
+**Примітка:**
+
+Для того, щоб цей код працював, вам потрібно буде встановити та імпортувати `expression_evaluator` у свій проект.
+
+**Важливо:**
+
+Завжди використовуйте безпечні бібліотеки для виконання виразів, а не `eval`, щоб запобігти виконанню шкідливого коду.
+
+**Відповідь:**
+
+1. Прозорість: Проблема знаходиться в рядку `result = eval(expression)`.
+2. Обґрунтування: `eval` є небезпечною, оскільки вона може виконувати будь-який код Python.
+3. Дієвість:
+
+**Пояснення:** Замість `eval` використовується `expression_evaluator` для безпечного виконання виразів.
+
+**Важливо:** Встановіть та імпортуйте `expression_evaluator` у свій проект.
+
+**Відповідь:**
+
+1. Прозорість: Проблема знаходиться в рядку `result = eval(expression)`.
+2. Обґрунтування: `eval` є небезпечною, оскільки вона може виконувати будь-який код Python.
+3. Дієвість:
+
+```python
+@csrf_exempt
+def mitre_lab_25_api(request):
+    if request.method == ""POST"":",aligned,0,0,1,expression_evaluator не існує в проєкті -> NameError
+12,gemma4:e2b,python.django.security.injection.command.subprocess-injection.subprocess-injection,CWE-78,corpus/pygoat/challenge/views.py,81,"            return JsonResponse({'message': 'failed', 'status': '500'})
+
+        user_chal.is_live = False
+        user_chal.save()
+        command = f""docker stop {user_chal.container_id}""
+        process = subprocess.Popen(command.split("" ""), stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        return JsonResponse({'message': 'success', 'status': '200'})
+    
+    def put(self, request, challange):
+                                        
+","return JsonResponse({'message': 'success', 'status': '200'})
+
+        user_chal.is_live = False
+        user_chal.save()
+        command = f""docker stop {user_chal.container_id}""
+        process = subprocess.Popen([""docker"", ""stop"", user_chal.container_id])
+        output, error = process.communicate()
+        return JsonResponse({'message': 'success', 'status': '200'})","1. Прозорість: Проблема виникає у рядку, де формується команда для виконання через `subprocess.Popen`. Введення даних користувача (`user_chal.container_id`) без належної валідації та екранування вставляється безпосередньо у системну команду. Це створює пряму можливість для командного впровадження.
+2. Обґрунтування: Це класична вразливість командного впровадження (Command Injection). Якщо користувач може контролювати значення `user_chal.container_id`, він може вставити спеціальні символи, як-от `;` або `&&`, щоб додати нові команди. Це дозволяє зловмиснику виконувати будь-які команди на хост-системі.
+3. Дієвість:
+
+Використання списку аргументів замість рядка для `subprocess.Popen` запобігає інтерпретації вбудованих команд. Це гарантує, що `user_chal.container_id` буде передано як окремий аргумент, а не як частина виконуваної команди.",aligned,0,1,1,список аргументів замість рядка; зайвий дубль return на початку (артефакт вирівнювання)
+13,gemma4:e2b,javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-httponly,CWE-522,corpus/NodeGoat/server.js,78,"                                  
+        extended: false
+    }));
+
+                                                         
+    app.use(session({
+                            
+                                                           
+            
+        secret: cookieSecret,
+                                       
+        saveUninitialized: true,
+        resave: true
+          
+                                          
+                                  
+                         
+          
+
+          
+                           
+                             
+                 
+                          
+                                                                    
+                           
+         
+          
+
+    }));
+
+      
+                        
+                                     
+                    
+","app.use(session({
+            secret: cookieSecret,
+            saveUninitialized: true,
+            resave: true,
+            cookie: {
+                httpOnly: true
+            }
+        }));","1. Прозорість: Проблема виявлена у конфігурації середовища сесій Express.js. Параметр `httpOnly` для cookie не встановлено у налаштуваннях middleware `session`. Це створює потенційну вразливість до витоку сесій через клієнтський JavaScript.
+2. Обґрунтування: Відсутність встановлення `httpOnly: true` дозволяє клієнту JavaScript отримати доступ до сесійного cookie. Це робить сесійні дані вразливими до атак типу Cross-Site Scripting (XSS). Зловмисний скрипт може прочитати та потенційно перехопити сесійний токен.
+3. Дієвість:
+
+Додавання `cookie: { httpOnly: true }` гарантує, що сесійний cookie буде доступний лише через HTTP-запити, а не через клієнтський JavaScript. Це значно підвищує безпеку сесійних даних від XSS-атак.",aligned,1,1,1,httpOnly:true додано коректно
+14,gemma4:e2b,javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-path,CWE-522,corpus/dvna/server.js,23,"
+                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))
+
+                      
+app.use(passport.initialize())
+app.use(passport.session())
+
+","app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { 
+    secure: false,
+    path: '/' // Додано path для коректної роботи
+  }
+}))","1. Прозорість: Проблема виявлена у конфігурації середовища сесій Express.js. Параметр `path` для cookie не встановлено у налаштуваннях `session`. Це може призвести до потенційних проблем із безпекою при обробці сесій.
+2. Обґрунтування: Відсутність встановленого шляху (`path`) для cookie може призвести до того, що сесійні дані будуть надсилатися без належного обмеження за шляхом. Це потенційно може дозволити несанкціонованим користувачам отримати доступ до сесійних даних, якщо не застосовуються додаткові механізми захисту.
+3. Дієвість:
+
+Додавання `path: '/'` явно вказує шлях, з якого буде доступно cookie. Це забезпечує більш контрольоване місце для зберігання сесійних даних.",aligned,0,0,1,"path:'/' не звужує область дії кукі — правило замовкло, захисту не додано"
+14,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-path,CWE-522,corpus/dvna/server.js,23,"
+                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))
+
+                      
+app.use(passport.initialize())
+app.use(passport.session())
+
+","app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false, path: '/'}
+}))","1. Прозорість: Проблема полягає в тому, що в налаштуваннях middleware `session` не вказано параметр `path`. Це означає, що cookie буде встановлено з замовчувальним значенням, яке може бути небезпечним, якщо невірно налаштовано.
+
+2. Обґрунтування: Відсутність `path` у cookie-сесії може призвести до того, що cookie буде встановлено для всього домену, а не лише для конкретної частини. Це може дозволити зловмисникам отримати доступ до cookie, навіть якщо вони не мають доступу до основної частини сайту.
+
+3. Дієвість:
+
+Виправлений код додає параметр `path: '/'` до налаштувань cookie-сесії. Це гарантує, що cookie буде встановлено лише для кореневого шляху домену, що значно підвищує безпеку.
+
+**Пояснення:**
+
+Додавання `path: '/'` до cookie-сесії гарантує, що cookie буде встановлено лише для кореневого шляху домену. Це запобігає випадковому встановленню cookie для піддоменів, які можуть бути використані зловмисниками для отримання доступу до cookie.
+
+**Загальний коментар:**
+
+Ця вразливість є досить поширеною і може бути легко усунена шляхом додавання `path` до налаштувань cookie-сесії. Рекомендується завжди перевіряти налаштування cookie-сесії на наявність `path`, щоб забезпечити максимальну безпеку.",aligned,0,0,1,те саме
+16,gemma4:e2b,javascript.lang.security.audit.code-string-concat.code-string-concat,CWE-95,corpus/NodeGoat/app/routes/contributions.js,32,"
+    this.handleContributionsUpdate = (req, res, next) => {
+
+                              
+                                                 
+        const preTax = eval(req.body.preTax);
+        const afterTax = eval(req.body.afterTax);
+        const roth = eval(req.body.roth);
+
+          
+                                                                              
+","const preTax = parseFloat(req.body.preTax);
+        const afterTax = parseFloat(req.body.afterTax);
+        const roth = parseFloat(req.body.roth);","1. Прозорість: Проблема виявлена у рядку, де використовуються функції `eval()` для виконання даних, отриманих з вхідного запиту користувача (`req.body`). Це пряме використання `eval()` з потенційно неперевіреними даними.
+2. Обґрунтування: Використання `eval()` з вхідними даними з HTTP-запиту є критично небезпечним. Це створює вразливість до виконання коду (Code Injection). Зловмисник може надати будь-який рядок, який буде виконаний як частина коду вашого застосунку. Це може призвести до виконання будь-яких системних команд у контексті вашого процесу.
+3. Дієвість: Замість використання `eval()`, слід використовувати безпечні методи для обробки даних, наприклад, перетворення на число або використання безпечних обчислювальних функцій.",aligned,0,1,1,"parseFloat замість eval — і безпечно, і функціонально коректно"
+21,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,javascript.express.security.audit.express-check-directory-listing.express-check-directory-listing,CWE-548,corpus/juice-shop/server.ts,296,"
+  app.use('/.well-known', serveIndexMiddleware, serveIndex('.well-known', { icons: true, view: 'details' }))
+  app.use('/.well-known', express.static('.well-known'))
+
+                                          
+  app.use('/encryptionkeys', serveIndexMiddleware, serveIndex('encryptionkeys', { icons: true, view: 'details' }))
+  app.use('/encryptionkeys/:file', serveKeyFiles())
+
+                                                                                               
+  app.use('/support/logs', serveIndexMiddleware, serveIndex('logs', { icons: true, view: 'details' }))                                                            
+  app.use('/support/logs', verify.accessControlChallenges())                               
+","app.use('/.well-known', express.static('.well-known'));
+app.use('/encryptionkeys', express.static('encryptionkeys'));
+app.use('/support/logs', express.static('logs'));","1. Прозорість: Проблема знаходиться у використанні `serveIndexMiddleware` та `serveIndex` для надання доступу до директорій `.well-known`, `encryptionkeys` та `support/logs`. Це може призвести до розкриття інформації про структуру файлової системи та вміст цих директорій.
+
+2. Обґрунтування: Вразливість пов'язана з тим, що `serveIndex` вмикає директорію індексу, що дозволяє переглядати файли та каталоги, які зазвичай не повинні бути доступні через HTTP. Це може бути використано для отримання доступу до конфіденційних даних, таких як ключі шифрування або журнали підтримки.
+
+3. Дієвість: Виправлений код:
+
+Пояснення: Видалено `serveIndexMiddleware` та `serveIndex`, оскільки вони вмикають директорію індексу, що є вразливим. Замість цього, використовується `express.static` для надання статичного доступу до цих директорій, що дозволяє переглядати файли, але не розкриває інформацію про структуру файлової системи.",aligned,1,0,1,"serveIndex прибрано, але express.static('encryptionkeys') і logs відкриває ті самі файли напряму; втрачено verify.accessControlChallenges()"
+23,gemma4:e2b,python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host,CWE-668,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,123,"        pass
+    
+    return redirect(url_for('lab'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)                                                 ","if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=5000, debug=True)","1. Прозорість: Проблема виявлена у виклику методу `app.run()` у блоці `if __name__ == '__main__':`. Використання параметра `host='0.0.0.0'` дозволяє застосувати сервер до всіх мережевих інтерфейсів. Це може призвести до того, що застосунок буде доступний для доступу з будь-якої мережі.
+2. Обґрунтування: Запуск Flask-додатку з `host='0.0.0.0'` робить сервер доступним у всій мережі, включно з зовнішньою. Це небезпечно, оскільки це може відкрити доступ до веб-сервісу потенційним зловмисникам. Це порушує принцип мінімальних привілеїв для мережевого доступу.
+3. Дієвість:
+
+Цей виправлений код обмежує доступ до сервера лише до локального хоста (`127.0.0.1`). Це запобігає випадковому публічному витоку сервера у мережі.",aligned,0,0,1,"host звужено, але debug=True лишився; для правила bad_host формально виправлено"
+23,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host,CWE-668,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,123,"        pass
+    
+    return redirect(url_for('lab'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)                                                 ","if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=5000, debug=True)","1. Прозорість: Проблема полягає у використанні host='0.0.0.0' у функції `app.run()`. Це дозволяє серверу слухати на всіх доступних IP-адресах, що потенційно може зробити його вразливим для атак ззовні.
+2. Обґрунтування: Встановлення host='0.0.0.0' робить сервер видимим для будь-якого пристрою в мережі, що може призвести до несанкціонованого доступу до даних. Це є серйозною вразливістю, оскільки зловмисник може використовувати її для отримання контролю над сервером.
+3. Дієвість: Виправлений код:
+
+Пояснення: Замінено host='0.0.0.0' на host='127.0.0.1'. Це дозволить серверу слухати лише на локальній машині, що значно зменшить ризик несанкціонованого доступу.",aligned,0,0,1,те саме
+25,gemma4:e2b,javascript.express.security.audit.express-open-redirect.express-open-redirect,CWE-601,corpus/NodeGoat/app/routes/index.js,72,"    app.post(""/memos"", isLoggedIn, memosHandler.addMemos);
+
+                                                  
+    app.get(""/learn"", isLoggedIn, (req, res) => {
+                                                                                    
+        return res.redirect(req.query.url);
+    });
+
+                    
+    app.get(""/research"", isLoggedIn, researchHandler.displayResearch);
+
+","app.get(""/learn"", isLoggedIn, (req, res) => {
+        const url = req.query.url;
+        // Приклад обмеження: перевірка, чи URL починається з відомого домену
+        if (url && url.startsWith('http://') || url.startsWith('https://')) {
+            // Тут слід реалізувати більш суворе обмеження, наприклад, перевірку на наявність у дозволеному списку
+            // res.redirect(url); // Закоментовано для безпеки, оскільки без логіки це залишається ризикованим
+        }
+        // Безпечний варіант: перенаправлення лише на внутрішні ресурси
+        res.redirect('/learn/default'); // Або інший внутрішній шлях
+    });","1. Прозорість: Проблема виявлена у маршруті `/learn`, де перенаправлення здійснюється на URL, наданий користувачем через параметр запиту `req.query.url`. Цей ввід не проходить належну валідацію перед використанням у функції `res.redirect()`. Це створює потенційну можливість для атак перенаправлення.
+2. Обґрунтування: Це класична вразливість відкритих перенаправлень (Open Redirect). Зловмисник може вставити будь-яку зовнішню URL-адресу у параметр `url`. Коли сервер виконує `res.redirect(req.query.url)`, він перенаправляє користувача на цю адресу. Це може бути використано для фішингу, оскільки користувач довіряє перенаправленню від свого довіреного домену.
+3. Дієвість: Для усунення цієї вразливості необхідно обмежити допустимі цільові URL-адреси. Використовуйте перелік дозволених доменів (allow-list) або перевіряйте, чи цільовий URL знаходиться в межах довіреної області вашого застосунку.",aligned,0,0,1,редирект просто вимкнено і замінено статичним шляхом — функціональність втрачено
+29,gemma4:e2b,python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5,CWE-327,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,86,"    
+                                                 
+    for username, user_data in users.items():
+        if user_data['email'] == email:
+                                                      
+            token = hashlib.md5(f""{email}:{datetime.now()}"".encode()).hexdigest()
+            password_reset_tokens[token] = username
+            
+                                                             
+                                                   
+            flash(f'Password reset link: /reset/{token}')
+","token = hashlib.sha256(f""{email}:{datetime.now()}"".encode()).hexdigest()
+            password_reset_tokens[token] = username","1. Прозорість: Проблема виявлена у рядку, де генерується токен для скидання пароля. Використовується хеш алгоритму MD5 для створення токена. Це небезпечно, оскільки MD5 не є криптографічно стійким до колізій.
+2. Обґрунтування: MD5 є слабким хеш-алгоритмом, оскільки він не має властивості стійкості до колізій. Це означає, що існує можливість створити різні вхідні дані, які дадуть однаковий хеш. Це може призвести до створення некоректних токенів, що дозволить несанкціоновано отримати доступ до функціоналу скидання пароля.
+3. Дієвість:
+
+Використання SHA256 замінює MD5, забезпечуючи набагато вищу криптографічну стійкість. Це гарантує, що токени, згенеровані для скидання пароля, будуть більш надійними та неможливими до колізій.",aligned,1,1,1,sha256 замість md5 для токена скидання
+29,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5,CWE-327,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,86,"    
+                                                 
+    for username, user_data in users.items():
+        if user_data['email'] == email:
+                                                      
+            token = hashlib.md5(f""{email}:{datetime.now()}"".encode()).hexdigest()
+            password_reset_tokens[token] = username
+            
+                                                             
+                                                   
+            flash(f'Password reset link: /reset/{token}')
+","for username, user_data in users.items():
+    if user_data['email'] == email:
+        token = hashlib.sha256(f""{email}:{datetime.now()}"".encode()).hexdigest()
+        password_reset_tokens[token] = username
+        flash(f'Password reset link: /reset/{token}')","1. Прозорість: Проблема знаходиться в рядку `token = hashlib.md5(f""{email}:{datetime.now()}"".encode()).hexdigest()`. Тут використовується функція `hashlib.md5`, яка є застарілою та небезпечною для використання в сучасних додатках.
+
+2. Обґрунтування: `hashlib.md5` є застарілим алгоритмом хешування, який не є стійким до колізій. Це означає, що існують шанси, що два різних вхідних значення дадуть однаковий хеш. Це робить його непридатним для використання в криптографічних цілях, таких як створення безпечних токенів для відновлення паролів.
+
+3. Дієвість:
+
+У виправленому коді замінено `hashlib.md5` на `hashlib.sha256`. `sha256` є більш сучасним та безпечним алгоритмом хешування, який є стійким до колізій. Це забезпечує надійнішу генерацію токенів для відновлення паролів.",aligned,0,1,1,те саме
+31,gemma4:e2b,javascript.express.security.audit.express-libxml-noent.express-libxml-noent,CWE-611,corpus/dvna/core/appHandler.js,235,"	}
+}
+
+module.exports.bulkProducts =  function(req, res) {
+	if (req.files.products && req.files.products.mimetype=='text/xml'){
+		var products = libxmljs.parseXmlString(req.files.products.data.toString('utf8'), {noent:true,noblanks:true})
+		products.root().childNodes().forEach( product => {
+			var newProduct = new db.Product()
+			newProduct.name = product.childNodes()[0].text()
+			newProduct.code = product.childNodes()[1].text()
+			newProduct.tags = product.childNodes()[2].text()
+","}
+}
+
+module.exports.bulkProducts =  function(req, res) {
+	if (req.files.products && req.files.products.mimetype=='text/xml'){
+		var products = libxmljs.parseXmlString(req.files.products.data.toString('utf8'), {noent:false,noblanks:true})
+		products.root().childNodes().forEach( product => {
+			var newProduct = new db.Product()
+			newProduct.name = product.childNodes()[0].text()
+			newProduct.code = product.childNodes()[1].text()
+			newProduct.tags = product.childNodes()[2].text()","1. Прозорість: Проблема виникає при використанні функції `libxmljs.parseXmlString` з налаштуванням `{noent:true}`. Це дозволяє бібліотеці `libxmljs` обробляти вхідні XML-дані з потенційно небезпечними зовнішніми сутностями. Це створює пряму вразливість до атак XML External Entities (XXE).
+2. Обґрунтування: Встановлення `noent:true` дозволяє парсеру XML обробляти зовнішні сутності, що може призвести до зчитування файлів з файлової системи сервера. Це небезпечно, оскільки це може призвести до несанкціонованого доступу до конфіденційних даних. Атакувальник може використовувати це для реалізації XXE-атак.
+3. Дієвість:
+
+Виправлення поля `noent` на `false` у виклику `libxmljs.parseXmlString` усуває потенційну вразливість до XXE. Це гарантує, що парсер не буде обробляти зовнішні сутності, запобігаючи атакам.",aligned,0,1,1,noent:false вимикає обробку зовнішніх сутностей
+33,gemma4:e2b,javascript.express.security.audit.express-third-party-object-deserialization.express-third-party-object-deserialization,CWE-502,corpus/dvna/core/appHandler.js,218,"}
+
+module.exports.bulkProductsLegacy = function (req,res){
+	                            
+	if(req.files.products){
+		var products = serialize.unserialize(req.files.products.data.toString('utf8'))
+		products.forEach( function (product) {
+			var newProduct = new db.Product()
+			newProduct.name = product.name
+			newProduct.code = product.code
+			newProduct.tags = product.tags
+",var products = JSON.parse(req.files.products.data.toString('utf8'));,"1. Прозорість: Проблема виявлена у виклику функції `serialize.unserialize`, яка приймає дані, контрольовані користувачем. Це потенційно відкриває шлях до виконання віддаленого коду (RCE) через десеріалізацію об'єктів.
+2. Обґрунтування: Функції десеріалізації, особливо якщо вони працюють з неперевіреними даними, можуть бути використані для ін'єкції шкідливого об'єкта. Це дозволяє зловмиснику виконувати будь-які методи, доступні в системі, що призводить до RCE.
+3. Дієвість: Замість використання потенційно небезпечної функції `serialize.unserialize`, слід використовувати стандартні та безпечні методи обробки даних, такі як `JSON.parse()` для роботи з JSON-даними.",aligned,1,0,1,"JSON.parse безпечніший, але формат даних інший -> сумісність зламано; втрачено перевірку if(req.files.products)"
+40,gemma4:e2b,python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host,CWE-668,corpus/pygoat/dockerized_labs/insec_des_lab/main.py,51,"        return render_template('result.html', message=message)
+    except Exception as e:
+        return render_template('result.html', message=f""Error: {str(e)}"")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+
+    ","if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=8080)","1. Прозорість: Проблема виявлена у виклику методу `app.run()` у блоці `if __name__ == '__main__':`. Використання параметра `host='0.0.0.0'` дозволяє застосувати сервер до всіх доступних мережевих інтерфейсів. Це може призвести до того, що застосунок буде доступний з будь-якої мережі, включно з публічною.
+2. Обґрунтування: Запуск Flask-додатку з `host='0.0.0.0'` робить сервер доступним для будь-яких клієнтів у мережі. Якщо застосунок не захищений додатковими механізмами автентифікації або обмеження доступу, це створює пряму можливість для несанкціонованого доступу. Це порушує принцип мінімальних привілеїв щодо мережевого доступу.
+3. Дієвість:
+
+Цей виправлений код обмежує доступ до застосунку лише до локального хоста (`127.0.0.1`). Це запобігає публічному виходу сервера в мережу.",aligned,0,1,1,host 127.0.0.1
+40,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host,CWE-668,corpus/pygoat/dockerized_labs/insec_des_lab/main.py,51,"        return render_template('result.html', message=message)
+    except Exception as e:
+        return render_template('result.html', message=f""Error: {str(e)}"")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+
+    ","if __name__ == '__main__':
+    app.run(host='localhost', port=8080)","1. Прозорість: Проблема полягає в тому, що додаток запускається з хостом `0.0.0.0`, що робить його доступним для будь-якого пристрою в мережі. Це може призвести до несанкціонованого доступу до сервера.
+2. Обґрунтування: Запуск сервера з `0.0.0.0` дозволяє будь-якому пристрою в мережі отримати доступ до нього. Це створює серйозну вразливість, оскільки зловмисник може використовувати цю можливість для отримання несанкціонованого доступу до даних і функцій сервера.
+3. Дієвість: Щоб виправити цю проблему, необхідно змінити параметр `host` у функції `app.run()` на `localhost` або іншу локальну адресу, яка не дозволить доступ ззовні.
+
+Виправлений код:
+
+Пояснення: Змінено параметр `host` з `0.0.0.0` на `localhost`, що дозволить серверу запускатися лише на локальній машині. Це значно зменшує ризик несанкціонованого доступу до сервера.",aligned,0,1,1,host localhost
+42,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.django.security.injection.request-data-write.request-data-write,CWE-93,corpus/pygoat/introduction/apis.py,64,"@csrf_exempt
+                           
+def log_function_checker(request):
+    if request.method == 'POST':
+        csrf_token = request.POST.get(""csrfmiddlewaretoken"")
+        log_code = request.POST.get('log_code')
+        api_code = request.POST.get('api_code')
+        dirname = os.path.dirname(__file__)
+        log_filename = os.path.join(dirname, ""playground/A9/main.py"")
+        api_filename = os.path.join(dirname, ""playground/A9/api.py"")
+        f = open(log_filename,""w"")
+        f.write(log_code)
+        f.close()
+        f = open(api_filename,""w"")
+        f.write(api_code)
+        f.close()
+                                                        
+","@csrf_exempt
+def log_function_checker(request):
+    if request.method == 'POST':
+        csrf_token = request.POST.get(""csrfmiddlewaretoken"")
+        log_code = request.POST.get('log_code')
+        api_code = request.POST.get('api_code')
+        dirname = os.path.dirname(__file__)
+        log_filename = os.path.join(dirname, ""playground/A9/main.py"")
+        api_filename = os.path.join(dirname, ""playground/A9/api.py"")
+        # Замість запису log_code у файл, використовуємо його для створення повідомлення
+        log_message = f""Log code: {log_code}""
+        print(log_message)
+        # Замість запису api_code у файл, використовуємо його для створення повідомлення
+        api_message = f""API code: {api_code}""
+        print(api_message)","1. Прозорість: Проблема знаходиться у функції `log_function_checker` в рядку `f.write(log_code)`. Тут відбувається запис небезпечного, потенційно введеного користувачем `log_code` у файл `main.py`.
+
+2. Обґрунтування: Ця вразливість пов'язана з впровадженням SQL-ін'єкцій. Якщо `log_code` містить SQL-команди, то зловмисник може використати їх для отримання несанкціонованого доступу до бази даних. Крім того, запис небезпечного коду у файл може призвести до виконання шкідливого коду.
+
+3. Дієвість: Виправлений код:
+
+Пояснення: Замість безпосереднього запису `log_code` та `api_code` у файли, ми використовуємо їх для створення повідомлень, які потім виводимо на консоль. Це запобігає запису потенційно шкідливого коду у файли. Також, було додано `print` для виведення повідомлень, що полегшує відстеження.",fallback,0,0,0,запис у файл замінено на print — функціональність знищено; пояснення помилково називає SQL-ін'єкцію
+46,gemma4:e2b,javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection,CWE-89,corpus/dvna/core/appHandler.js,11,"var serialize = require(""node-serialize"")
+const Op = db.Sequelize.Op
+
+module.exports.userSearch = function (req, res) {
+	var query = ""SELECT name,id FROM Users WHERE login='"" + req.body.login + ""'"";
+	db.sequelize.query(query, {
+		model: db.User
+	}).then(user => {
+		if (user.length) {
+			var output = {
+				user: {
+","var serialize = require(""node-serialize"")
+const Op = db.Sequelize.Op
+
+module.exports.userSearch = function (req, res) {
+	var query = ""SELECT name,id FROM Users WHERE login = :login"";
+	db.sequelize.query(query, {
+		replacements: { login: req.body.login },
+		model: db.User
+	}).then(user => {
+		if (user.length) {
+			var output = {","1. Прозорість: Проблема знаходиться у рядку, де конструюється SQL-запит: `var query = ""SELECT name,id FROM Users WHERE login='"" + req.body.login + ""'"";`. Тут вводиться дані з запиту користувача без належної обробки. Це створює пряму вразливість до SQL-ін'єкції.
+2. Обґрунтування: Оскільки значення `req.body.login` безпосередньо вставляється у SQL-рядок, зловмисник може передати спеціальні символи, щоб змінити логіку запиту бази даних. Це дозволяє виконувати несанкціоновані SQL-команди, що може призвести до викрадення, зміни або знищення даних.
+3. Дієвість:
+
+Використання параметризованих запитів (prepared statements) гарантує, що вхідні дані будуть трактуватися як дані, а не як частина SQL-команди. Це повністю усуває ризик SQL-ін'єкції.",aligned,0,1,1,параметризований запит через replacements
+49,gemma4:e2b,python.lang.security.audit.subprocess-shell-true.subprocess-shell-true,CWE-78,corpus/pygoat/introduction/mitre.py,233,"@authentication_decorator
+def mitre_lab_17(request):
+    return render(request, 'mitre/mitre_lab_17.html')
+
+def command_out(command):
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process.communicate()
+    
+
+@csrf_exempt
+def mitre_lab_17_api(request):
+","def command_out(command):
+    process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process.communicate()","1. Прозорість: Проблема виявлена у функції `command_out`, де використовується `subprocess.Popen` з параметром `shell=True`. Це дозволяє виконувати команди через системну оболонку, що створює потенційну вразливість.
+2. Обґрунтування: Використання `shell=True` дозволяє вбудовувати команди у системну оболонку, що відкриває шлях для командного вбудовування (command injection). Зловмисник може передати небезпечні команди, які будуть виконані системою. Це може призвести до виконання несанкціонованих дій на сервері.
+3. Дієвість:
+
+Виправлення полягає у встановленні `shell=False` за замовчуванням. Це запобігає виконанню команд через системну оболонку, зменшуючи ризик командного вбудовування. Це робить функцію безпечнішою для використання.",aligned,0,0,1,shell=False із рядковою командою -> FileNotFoundError; потрібен shlex.split
+49,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.lang.security.audit.subprocess-shell-true.subprocess-shell-true,CWE-78,corpus/pygoat/introduction/mitre.py,233,"@authentication_decorator
+def mitre_lab_17(request):
+    return render(request, 'mitre/mitre_lab_17.html')
+
+def command_out(command):
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process.communicate()
+    
+
+@csrf_exempt
+def mitre_lab_17_api(request):
+","@authentication_decorator
+def mitre_lab_17(request):
+    return render(request, 'mitre/mitre_lab_17.html')
+
+def command_out(command):
+    process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process.communicate()","1. Прозорість: Проблема знаходиться у функції `command_out` в рядку `shell=True`. Цей параметр дозволяє використовувати shell інтерпретатор для виконання команди, що робить її вразливою до атак, які можуть використати поточні налаштування shell та змінні.
+
+2. Обґрунтування: Використання `shell=True` у функції `Popen` може призвести до виконання довільного коду, оскільки shell інтерпретатор може бути скомпрометований. Це дозволяє зловмиснику виконати будь-яку команду, яка може призвести до витоку даних, модифікації файлів або навіть повного захоплення контролю над сервером.
+
+3. Дієвість: Виправлений код:
+
+Пояснення: У виправленому коді параметр `shell=False` видалено з функції `command_out`. Це запобігає використанню shell інтерпретатора, що усуває вразливість до атак, пов'язаних з shell.",aligned,0,0,1,те саме
+51,gemma4:e2b,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/bad/vulpy.py,55,"    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+
+app.run(debug=True, host='127.0.1.1', port=5000, extra_files='csp.txt')
+","def run_app():
+    app.run(debug=True, host='127.0.0.1', port=5000, extra_files='csp.txt')
+
+if __name__ == '__main__':
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    run_app()","1. Прозорість: Проблема полягає у прямому виклику `app.run(...)` на найвищому рівні виконання програми. Це порушує рекомендації фреймворку Flask щодо безпечного запуску застосунку.
+2. Обґрунтування: Прямий виклик `app.run()` без додаткових перевірок може призвести до непередбачуваної поведінки або неправильної конфігурації середовища виконання. Це може бути використано для обходу механізмів безпеки або спричинити проблеми з ізоляцією процесу.
+3. Дієвість:
+
+Винесення виклику `app.run()` у функцію дозволяє застосувати необхідні перевірки перед запуском сервера. Це забезпечує більш контрольований і безпечний процес ініціалізації застосунку.",fallback,0,0,0,"app.run загорнуто у функцію, debug=True лишився; у run-блок затягнуто фрагмент обробника відповіді -> NameError на response"
+51,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/bad/vulpy.py,55,"    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+
+app.run(debug=True, host='127.0.1.1', port=5000, extra_files='csp.txt')
+","if csp:
+    response.headers['Content-Security-Policy'] = csp
+return response
+
+def run_app():
+    app.run(debug=True, host='127.0.1.1', port=5000, extra_files='csp.txt')
+
+run_app()","1. Прозорість: Проблема полягає в тому, що функція `app.run()` викликається безпосередньо на верхньому рівні програми. Це може призвести до того, що налаштування безпеки, зокрема політики Content Security Policy (CSP), будуть проігноровані.
+
+2. Обґрунтування: Виклик `app.run()` безпосередньо не дозволяє застосувати налаштування безпеки, які можуть бути критично важливими для захисту від атак, таких як Cross-Site Scripting (XSS) або Cross-Site Request Forgery (CSRF).
+
+3. Дієвість: Виправлений код виглядає так:
+
+У цьому виправленому коді функція `app.run()` поміщена в окрему функцію `run_app()`, що дозволяє застосувати налаштування CSP перед запуском сервера. Це забезпечує, що політика CSP буде застосована, навіть якщо вона не буде проігнорована `app.run()`.",fallback,0,0,0,return поза функцією; debug=True лишився
+52,gemma4:e2b,python.jwt.security.jwt-hardcode.jwt-python-hardcoded-secret,CWE-522,corpus/vulpy/good/libapi.py,20,"    if login:
+        if not libuser.login(username, password):
+            return None
+
+    now = time()
+    token = jwt.encode({
+        'username': username,
+        'nbf': now,
+        'exp': now + not_after
+        }, secret, algorithm='HS256').decode()
+
+    return token
+
+
+def authenticate(request):
+","if login:
+        if not libuser.login(username, password):
+            return None
+
+    now = time()
+    token = jwt.encode({
+        'username': username,
+        'nbf': now,
+        'exp': now + not_after
+        }, os.environ.get('JWT_SECRET_KEY'), algorithm='HS256').decode()
+
+    return token","1. Прозорість: Проблема полягає у жорсткому кодуванні секрету (secret) для JWT. Цей секрет безпосередньо вбудований у код програми. Це порушує принцип безпеки, оскільки секрет легко доступний для будь-кого, хто має доступ до вихідного коду.
+2. Обґрунтування: Використання жорстко закодованого секрету робить токени JWT скомпрометованими. Зловмисник може використовувати цей секрет для підробки токенів, що дозволяє йому отримувати доступ до систем, які очікують автентифікації через ці токени. Це створює пряму загрозу несанкціонованого доступу.
+3. Дієвість:
+
+Використовується змінна середовища `JWT_SECRET_KEY` для отримання секрету. Це забезпечує, що секрет не зберігається у вихідному коді. Це значно підвищує безпеку системи, оскільки секрет ізольовано від коду.",aligned,0,1,1,секрет JWT із змінної оточення; потрібен import os
+54,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/bad/vulpy.py,55,"    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+
+app.run(debug=True, host='127.0.1.1', port=5000, extra_files='csp.txt')
+","if csp:
+    response.headers['Content-Security-Policy'] = csp
+return response
+
+
+app.run(debug=False, host='127.0.1.1', port=5000, extra_files='csp.txt')","## Прозорість:
+
+Проблема полягає в тому, що в налаштуваннях запуску Flask-сервера вказано `debug=True`. Це може бути небезпечно, оскільки в режимі налагодження сервер виводить велику кількість детальної інформації про запити та відповіді, включаючи секретні ключі, паролі та інші конфіденційні дані.
+
+## Обґрунтування:
+
+Увімкнення `debug=True` дозволяє Flask виводити інформацію про помилки та інші деталі в браузері, що може бути використано зловмисниками для отримання інформації про структуру програми, її вразливості та навіть для виконання SQL-ін'єкцій або інших атак. У виробничому середовищі це неприпустимо.
+
+## Дієвість:
+
+Виправлений код:
+
+У цьому виправленому коді `debug=False` встановлено в налаштуваннях запуску Flask-сервера, що вимикає режим налагодження. Це запобігає витоку конфіденційної інформації в браузері. Замість цього, для налагодження слід використовувати інші методи, такі як логування в файл або використання відладчика.",aligned,0,0,1,"debug=False правильно, але 'return response' винесено поза функцію -> SyntaxError"
+56,gemma4:e2b,python.cryptography.security.mode-without-authentication.crypto-mode-without-authentication,CWE-327,corpus/vulpy/utils/aes-decrypt.py,24,"
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(key.encode())
+    key_digest = digest.finalize()
+
+    cipher = Cipher(algorithms.AES(key_digest), modes.CFB(unhexlify(iv)), backend=default_backend())
+    decryptor = cipher.decryptor()
+    plain = decryptor.update(unhexlify(message)) + decryptor.finalize()
+
+    print(plain.decode(errors='ignore'))
+
+","from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    # Припускаємо, що key_digest вже є коректним ключем для AES
+    # Для GCM потрібен окремий ключ та вектор ініціалізації (IV)
+    # У реальному коді ключ має бути довжиною 16, 24 або 32 байт.
+
+    # Приклад використання AES-GCM
+    # key_digest має бути ключем, який відповідає вимогам AES (наприклад, 16, 24 або 32 байти)
+    # Для простоти припустімо, що ми використовуємо ключ, отриманий з попередніх кроків.
+    
+    # У цьому прикладі ми замінюємо логіку для демонстрації безпечного режиму
+    # У реальному застосуванні потрібно правильно генерувати та обробляти ключі та IV.
+    
+    # Приклад: Якщо key_digest є ключем, який ми хочемо використовувати для AES-GCM
+    # (У реальності, ключ має бути окремим)
+    
+    # Для коректного прикладу, ми припускаємо, що ключ має бути 16 байт для AES
+    # Якщо key_digest є результатом попереднього хешу, його потрібно адаптувати.
+    
+    # Припустимо, що ми використовуємо ключ, який має правильну довжину для AES
+    # Для демонстрації, ми використовуємо загальноприйнятий ключ (16 байт)
+    key = b'ThisIsA16ByteKey' # Приклад ключа
+    iv = unhexlify(iv) # IV має бути у форматі байтів
+
+    aesgcm = AESGCM(key)
+    
+    # Шифрування
+    ciphertext = aesgcm.encrypt(iv, unhexlify(message), None)
+
+    # Дешифрування (для повноти прикладу)
+    # decrypted_message = aesgcm.decrypt(iv, ciphertext, None)
+    
+    # Вивід результату (залежить від того, що саме потрібно виводити)
+    # print(decrypted_message.decode(errors='ignore'))","1. Прозорість: Проблема виникає при використанні режиму блокування (CFB) без належного механізму автентифікації повідомлення. Це дозволяє потенційному зловмиснику модифікувати зашифровані дані без виявлення.
+2. Обґрунтування: Режим CFB (Cipher Feedback) сам по собі не забезпечує цілісності даних. Якщо повідомлення буде змінено, дешифрування може відбутися коректно, але отриманий текст буде невірним. Це створює ризик атак на зміну даних (bit-flipping attacks).
+3. Дієвість: Для забезпечення цілісності та конфіденційності слід використовувати режим AEAD, наприклад, GCM. Це забезпечує одночасну шифрування та автентифікацію.",fallback,0,0,1,"не код, а коментарі-міркування; шифрування не реалізовано"
+56,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.cryptography.security.mode-without-authentication.crypto-mode-without-authentication,CWE-327,corpus/vulpy/utils/aes-decrypt.py,24,"
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(key.encode())
+    key_digest = digest.finalize()
+
+    cipher = Cipher(algorithms.AES(key_digest), modes.CFB(unhexlify(iv)), backend=default_backend())
+    decryptor = cipher.decryptor()
+    plain = decryptor.update(unhexlify(message)) + decryptor.finalize()
+
+    print(plain.decode(errors='ignore'))
+
+",,"1. Прозорість: Проблема полягає у використанні шифрування AES у режимі CFB без забезпечення автентичності повідомлення. Це може призвести до того, що зловмисник зможе розшифрувати зашифрований вміст.
+
+2. Обґрунтування: Режим CFB не гарантує автентичність даних, що означає, що зловмисник може змінити повідомлення, а шифрування все одно буде вважатися дійсним. Використання AEAD (Authenticated Encryption with Associated Data) режиму, такого як GCM, забезпечує як автентифікацію, так і шифрування, що робить його набагато безпечнішим.
+
+3. Дієвість:
+
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(key.encode())
+    key_digest = digest.finalize()
+
+    cipher = Cipher(algorithms.AES(key_digest), modes.GCM(iv, key_digest), backend=default_backend())
+    encryptor = cipher.encryptor()
+    encrypted = encryptor.update(unhexlify(message)) + encryptor.finalize()
+
+    print(encrypted)
+
+Пояснення: Замість режиму CFB, ми використовуємо режим GCM, який є AEAD (Authenticated Encryption with Associated Data). Це забезпечує автентифікацію даних, що робить його безпечнішим. Режим GCM використовує HMAC для автентифікації даних, а AES для шифрування.",fallback,0,0,1,блок коду відсутній
+57,gemma4:e2b,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/good/vulpy.py,53,"def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt')
+
+","def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+def run_app():
+    app.run(debug=True, host='127.0.0.1', port=5001, extra_files='csp.txt')
+
+run_app()","1. Прозорість: Проблема виявлена у виклику `app.run(...)` безпосередньо на верхньому рівні скрипта. Це порушує рекомендації Flask щодо безпечного запуску застосунку.
+2. Обґрунтування: Запуск застосунку безпосередньо може призвести до непередбачуваної поведінки та потенційних проблем з безпекою. Це може дозволити несанкціонованим користувачам отримати доступ до конфігурації або викликати непередбачувані дії. Рекомендація полягає у використанні функції-захисту (guard) для контролю над цим процесом.
+3. Дієвість:
+
+Винесення виклику `app.run(...)` у функцію `run_app()` забезпечує кращий контроль над життєвим циклом застосунку. Це дозволяє застосувати додаткові перевірки безпеки перед запуском сервера.",fallback,0,0,0,"обгортка у функцію, debug=True лишився; пояснення хибне щодо причини правила"
+57,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/good/vulpy.py,53,"def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt')
+
+","def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+def run_app(csp):
+    app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt', after_request=add_csp_headers)
+
+run_app(csp)","1. Прозорість: Проблема полягає в тому, що функція `app.run()` викликається безпосередньо в основному блоці коду. Це може призвести до того, що налаштування безпеки, які були додані за допомогою `csp.txt`, не будуть застосовані.
+
+2. Обґрунтування: Flask не виконує `app.run()` безпосередньо. Натомість, він запускає веб-сервер, який обробляє запити. Якщо `app.run()` викликається безпосередньо, він може ігнорувати будь-які додаткові налаштування безпеки, які були додані за допомогою `csp.txt`. Це може призвести до того, що веб-додаток буде вразливим до різних атак, таких як XSS, CSRF та інші.
+
+3. Дієвість: Щоб виправити цю проблему, функцію `app.run()` слід викликати всередині функції-обгортки, яка перевіряє налаштування безпеки. Це забезпечить, що налаштування безпеки будуть застосовані до запитів, які обробляє веб-сервер.
+
+Виправлений код:
+
+Пояснення:
+У виправленому коді функція `run_app()` викликає `app.run()` всередині функції-обгортки. Ця функція-обгортка перевіряє, чи встановлено налаштування безпеки `csp`. Якщо `csp` встановлено, вона додає заголовки Content-Security-Policy до відповіді. Це гарантує, що налаштування безпеки будуть застосовані до запитів, які обробляє веб-сервер.",fallback,0,0,0,app.run не має параметра after_request -> TypeError; debug=True лишився
+58,gemma4:e2b,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/good/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","app.run(host='127.0.0.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))","1. Прозорість: Проблема виявлена у виклику `app.run()`, де прапорець `debug=True` встановлено. Це дозволяє Flask розкривати чутливу інформацію під час виконання. Це є порушенням політики безпеки для продакшн-середовищ.
+2. Обґрунтування: Увімкнення режиму налагодження (`debug=True`) у продакшн-середовищі може призвести до витоку конфіденційних даних. Flask може відображати детальні помилки та інформацію про структуру застосунку у відповіді клієнта. Це може включати шляхи файлів, змінні середовища та внутрішню логіку застосунку.
+3. Дієвість:
+
+Видалення параметра `debug=True` запобігає розкриттю чутливої інформації. Це забезпечує, що застосунок працює у безпечному режимі для продакшн-середовищ.",aligned,0,1,1,debug прибрано
+58,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/good/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=False, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))","1. Прозорість: Проблема знаходиться у рядку `app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))`. Увімкнений прапорець `debug=True` дозволяє виводити детальні повідомлення про запити та помилки в консоль, що може розкрити конфіденційну інформацію, таку як паролі, ключі API та інші секрети.
+
+2. Обґрунтування: Увімкнення `debug=True` у Flask робить додаток вразливим до розкриття інформації. Це відбувається тому, що всі запити та помилки, а також інші внутрішні дані, будуть виведені в консоль. Це може призвести до витоку конфіденційних даних, таких як паролі, ключі API та інші секрети, які можуть бути використані зловмисниками для несанкціонованого доступу до системи.
+
+3. Дієвість:
+
+У цьому виправленому фрагменті прапорець `debug=False` вимкнено, що запобігає виведенню детальних повідомлень про запити та помилки в консоль. Замість цього додаток буде працювати в режимі без налагодження, що робить його безпечнішим для розгортання в продуктивному середовищі. Також, `host` та `ssl_context` залишаються незмінними, оскільки вони не пов'язані з вразливістю.",aligned,0,1,1,debug=False
+59,gemma4:e2b,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_post.py,30,"
+        with api_key_file.open('w') as outfile:
+            outfile.write(api_key)
+
+    api_key = api_key_file.open().read()
+    r = requests.post('http://127.0.1.1:5000/api/post', json={'text':message}, headers={'X-APIKEY': api_key})
+    print(r.text)
+
+
+if __name__ == '__main__':
+    cmd_api_client()
+","with api_key_file.open('w') as outfile:
+            outfile.write(api_key)
+
+    api_key = api_key_file.open().read()
+    r = requests.post('https://127.0.1.1:5000/api/post', json={'text':message}, headers={'X-APIKEY': api_key})
+    print(r.text)","1. Прозорість: Проблема виявлена у рядку, де виконується HTTP-запит до зовнішнього ресурсу. Використання протоколу `http://` замість `https://` створює небезпеку. Це дозволяє перехоплення трафіку на мережі.
+2. Обґрунтування: Запит, виконаний через HTTP, передає дані, включаючи API-ключ, у незашифрованому вигляді. Це означає, що будь-який зловмисник, який може перехопити мережевий трафік (наприклад, через Man-in-the-Middle атаку), може легко отримати доступ до конфіденційних даних. Це може призвести до викрадення API-ключів.
+3. Дієвість:
+
+Виправлення замінює `http://` на `https://`, забезпечуючи шифрування передачі даних. Це запобігає перехопленню API-ключа під час передачі.",aligned,0,1,1,https замість http
+60,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.lang.security.audit.md5-used-as-password.md5-used-as-password,CWE-327,corpus/dvpwa/sqli/dao/user.py,41,"                (username,),
+            )
+            return User.from_raw(await cur.fetchone())
+
+    def check_password(self, password: str):
+        return self.pwd_hash == md5(password.encode('utf-8')).hexdigest()
+","def check_password(self, password: str):
+        return self.pwd_hash == scrypt.hash(password.encode('utf-8'), self.salt, 16).hex()","1. Прозорість: Проблема полягає у використанні функції `md5` для хешування паролів. Це не є безпечним, оскільки MD5 є криптографічно слабким алгоритмом, який може бути зламаний за короткий час.
+
+2. Обґрунтування: Використання MD5 для хешування паролів є вразливим, оскільки MD5 не забезпечує достатнього рівня захисту. Атакувальник може використати спеціальні таблиці перебору MD5, щоб зламати хеш пароля. Тому, для забезпечення безпеки, необхідно використовувати більш надійні хеш-функції, такі як scrypt.
+
+3. Дієвість:
+
+Пояснення:
+
+Замість використання `md5`, ми тепер використовуємо `scrypt.hash` для хешування паролів. `scrypt` є більш надійним хеш-алгоритмом, який забезпечує кращий захист від атак перебору. Функція `scrypt.hash` приймає пароль, salt (ключ солі) та кількість раундів як вхідні параметри. Вихідним параметром є хешований пароль у вигляді рядка.",aligned,0,0,1,scrypt.hash не існує; self.salt у класі не визначено
+61,gemma4:e2b,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/good/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","def run_app():
+    app.run(debug=True, host='127.0.0.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+
+if __name__ == '__main__':
+    before_request()
+    run_app()","1. Прозорість: Проблема полягає у виконанні `app.run(...)` безпосередньо у корені скрипта. Це порушує рекомендації Flask щодо безпечного запуску застосунків. Це може призвести до потенційних проблем з контролем доступу та ізоляцією середовища виконання.
+2. Обґрунтування: Запуск застосунку безпосередньо може відкривати непередбачувані шляхи для експлуатації, особливо якщо середовище не належним чином налаштоване. Це може бути пов'язано з тим, як Flask обробляє контекст запиту та відповіді. Рекомендація полягає у використанні функції-охоронця для контролю над цим процесом.
+3. Дієвість:
+
+Винесення виклику `app.run()` у функцію дозволяє застосувати додаткові перевірки перед запуском сервера. Це забезпечує кращий контроль над життєвим циклом застосунку. Це відповідає найкращим практикам безпеки для Flask-додатків.",fallback,0,0,1,обгортка у функцію; debug=True лишився; before_request() викликано вручну поза контекстом запиту
+61,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/good/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+def run_server():
+    app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+
+run_server()","1. Прозорість: Проблема полягає у використанні `app.run()` безпосередньо у верхньому рівні програми. Згідно з документацією Flask, `app.run()` має бути обгорнутий у функцію-захист, наприклад, усередині функції, щоб уникнути його ігнорування.
+
+2. Обґрунтування: Безпосереднє використання `app.run()` може призвести до того, що Flask проігнорує його, оскільки він не є частиною обробки запитів. Це може призвести до того, що сервер не буде запущений, або ж він буде запущений з неправильними налаштуваннями.
+
+3. Дієвість:
+
+Пояснення: Код було змінено, щоб `app.run()` було викликано у функції `run_server()`. Це гарантує, що Flask буде обробляти його належним чином, а також дозволяє налаштовувати сервер за допомогою параметрів, таких як `debug` і `host`.",fallback,0,0,1,"обгортка у функцію, debug=True лишився"
+62,gemma4:e2b,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/bad/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","app.run(host='127.0.0.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))","1. Прозорість: Проблема виявлена у виклику `app.run()`, де параметр `debug=True` встановлено. Це дозволяє Flask розкривати деталі помилок та інформацію про конфігурацію при роботі у режимі налагодження. Це створює потенційний вектор для витоку конфіденційних даних у середовищі виконання.
+2. Обґрунтування: У режимі налагодження Flask надає детальні повідомлення про помилки, стек-треси та внутрішню інформацію про застосунок. Якщо застосунок розгортається у продакшені з `debug=True`, це може призвести до розкриття шляхів до файлів, змінних середовища або інших чутливих даних. Це значно посилює потенційну атаку на інформаційну безпеку.
+3. Дієвість:
+
+Видалення параметра `debug=True` запобігає розкриттю чутливої інформації у продакшені. Рекомендується використовувати змінні середовища або конфігураційні файли для налаштування застосунку замість вбудованого режиму налагодження.",aligned,0,1,1,debug прибрано
+62,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/bad/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=False, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))","1. Прозорість: Проблема знаходиться у рядку `app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))`. У цьому рядку ввімкнено режим налагодження (`debug=True`), що є небезпечним для розгортання в продуктивному середовищі.
+
+2. Обґрунтування: Ввімкнений режим налагодження (`debug=True`) у Flask-додатку виводить детальні повідомлення про запити та відповіді, включаючи секретну інформацію, таку як паролі, токени та інші конфіденційні дані. Це може призвести до витоку інформації, якщо додаток буде розгорнутий у середовищі, де ці дані можуть бути скомпрометовані.
+
+3. Дієвість:
+
+У цьому виправленому коді режим налагодження (`debug=False`) вимкнено. Це запобігає витоку конфіденційної інформації та робить додаток безпечнішим для розгортання в продуктивному середовищі. Використання конфігураційних змінних або змінних середовища для керування режимом налагодження є кращим підходом.",aligned,0,1,1,debug=False
+63,gemma4:e2b,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_list.py,10,"
+@click.command()
+@click.argument('username')
+def cmd_api_client(username):
+
+    r = requests.get('http://127.0.1.1:5000/api/post/{}'.format(username))
+    if r.status_code != 200:
+        click.echo('Some error ocurred. Status Code: {}'.format(r.status_code))
+        print(r.text)
+        return False
+
+","@click.command()
+@click.argument('username')
+def cmd_api_client(username):
+
+    r = requests.get('https://127.0.1.1:5000/api/post/{}'.format(username))
+    if r.status_code != 200:
+        click.echo('Some error ocurred. Status Code: {}'.format(r.status_code))
+        print(r.text)
+        return False","1. Прозорість: Проблема виявлена у рядку, де виконується HTTP-запит за допомогою бібліотеки `requests`. Використання протоколу `http://` замість `https://` створює ризик перехоплення даних. Це може призвести до небезпечної передачі конфіденційної інформації.
+2. Обґрунтування: Запит, виконаний через `http://`, передається у відкритому вигляді без шифрування. Це означає, що будь-який зловмисник, який перехоплює мережевий трафік (наприклад, через Man-in-the-Middle атаку), може легко прочитати передані дані. Це особливо небезпечно для облікових даних та будь-якої іншої конфіденційної інформації.
+3. Дієвість:
+
+Виправлення замінює `http://` на `https://`, забезпечуючи шифрування комунікації між клієнтом та сервером. Це запобігає перехопленню конфіденційних даних під час передачі запитів.",aligned,0,1,1,https
+63,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_list.py,10,"
+@click.command()
+@click.argument('username')
+def cmd_api_client(username):
+
+    r = requests.get('http://127.0.1.1:5000/api/post/{}'.format(username))
+    if r.status_code != 200:
+        click.echo('Some error ocurred. Status Code: {}'.format(r.status_code))
+        print(r.text)
+        return False
+
+","@click.command()
+@click.argument('username')
+def cmd_api_client(username):
+
+    r = requests.get('https://127.0.1.1:5000/api/post/{}'.format(username))
+    if r.status_code != 200:
+        click.echo('Some error ocurred. Status Code: {}'.format(r.status_code))
+        print(r.text)
+        return False","1. Прозорість: Проблема знаходиться у рядку, де використовується `requests.get('http://127.0.1.1:5000/api/post/{}'.format(username))`. Цей рядок використовує незахищене з'єднання HTTP, що робить його вразливим до перехоплення трафіку.
+
+2. Обґрунтування: Використання незахищеного HTTP-з'єднання дозволяє будь-кому на тій самій мережі перехопити дані, що передаються між клієнтом і сервером. Це може призвести до витоку конфіденційної інформації, такої як облікові дані користувачів, паролі та інша особиста інформація.
+
+3. Дієвість:
+
+Замінивши `http://` на `https://` у рядку `requests.get()`, ми забезпечуємо безпечне з'єднання HTTPS, що захищає дані від перехоплення. Це запобігає потенційним атакам на конфіденційність і цілісність даних.",aligned,0,1,1,https
+64,gemma4:e2b,python.cryptography.security.mode-without-authentication.crypto-mode-without-authentication,CWE-327,corpus/vulpy/utils/aes-encrypt.py,28,"    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(key.encode())
+    key_digest = digest.finalize()
+
+
+    cipher = Cipher(algorithms.AES(key_digest), modes.CFB(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    encrypted = encryptor.update(message.encode()) + encryptor.finalize()
+
+    print(hexlify(iv).decode(), hexlify(encrypted).decode())
+
+","from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import hmac
+
+    # Приклад використання GCM (замість CFB)
+    # Примітка: Для GCM потрібен окремий IV та аутентифікатор
+    # Цей фрагмент є концептуальним, оскільки повна реалізація залежить від контексту.
+    # Для коректного використання GCM потрібно використовувати відповідні методи.
+
+    # Приклад коректного підходу (концептуально, оскільки оригінальний код використовував CFB)
+    # У реальному коді потрібно використовувати Cipher(algorithms.AES(key), modes.GCM(nonce, tag))
+    pass","1. Прозорість: Проблема полягає у використанні режиму блокування (CFB) без належного механізму автентифікації повідомлення. Це дозволяє потенційному зловмиснику модифікувати зашифрований текст без виявлення.
+2. Обґрунтування: Режим CFB сам по собі не забезпечує цілісності даних. Якщо повідомлення буде перехоплено, зловмисник може змінити зашифровані дані, що призведе до непередбачуваних результатів при розшифруванні. Це порушує принцип конфіденційності та цілісності даних.
+3. Дієвість: Для забезпечення цілісності та конфіденційності слід використовувати режим AEAD, наприклад, GCM. Це забезпечує як шифрування, так і автентифікацію даних одночасно.",fallback,0,0,1,"не код, а коментарі; шифрування не реалізовано"
+65,gemma4:e2b,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/bad/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","def run_app():
+    app.run(debug=True, host='127.0.0.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+
+if __name__ == '__main__':
+    before_request()
+    run_app()","1. Прозорість: Проблема полягає у виконанні `app.run(...)` безпосередньо у корені скрипта. Це порушує рекомендації Flask щодо безпечного запуску застосунків. Це може призвести до потенційних проблем з безпекою та контролем виконання.
+2. Обґрунтування: Прямий виклик `app.run()` без захисту може дозволити несанкціонованим користувачам або процесам ініціювати виконання застосунку. Це може бути використано для обходу логіки аутентифікації або доступу до конфіденційних даних.
+3. Дієвість:
+
+Винесення виклику `app.run()` у функцію дозволяє застосувати додаткові перевірки перед запуском сервера. Це забезпечує кращий контроль над середовищем виконання застосунку.",fallback,0,0,1,обгортка; debug=True лишився; before_request() поза контекстом
+65,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/bad/vulpy-ssl.py,29,"
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+","@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+def run_app():
+    app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+
+run_app()","1. Прозорість: Проблема полягає в тому, що функція `app.run()` викликається безпосередньо на верхньому рівні. Це небезпечно, оскільки `app.run()` може бути проігнорована фреймворком Flask, якщо вона не знаходиться всередині захищеного блоку, наприклад, функції.
+
+2. Обґрунтування: Безпосереднє використання `app.run()` може призвести до того, що Flask не буде застосовувати налаштування безпеки, які ви встановили для вашого додатку. Це може дозволити зловмисникам отримати доступ до вашого додатку або виконувати шкідливі дії.
+
+3. Дієвість: Виправлений код виглядає так:
+
+Пояснення: Ми винесли `app.run()` у окрему функцію `run_app()`. Це гарантує, що Flask побачить її і застосує всі необхідні налаштування безпеки.",fallback,0,0,1,обгортка; debug=True лишився
+66,gemma4:e2b,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/good/vulpy.py,53,"def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt')
+
+","def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(host='127.0.0.1', port=5001)","1. Прозорість: Проблема виявлена у виклику `app.run()`, де параметр `debug` встановлено у `True`. Це порушує рекомендації щодо безпечного розгортання застосунків у продакшені. Увімкнення режиму налагодження може призвести до розкриття чутливої інформації.
+2. Обґрунтування: Режим налагодження Flask автоматично відображає детальні помилки та інформацію про середовище при помилках. Це може включати шляхи до файлів, змінні середовища та інші конфіденційні дані. Розгортання застосунку з `debug=True` у продакшені створює серйозний ризик для конфіденційності даних.
+3. Дієвість:
+
+Видалено параметр `debug=True` з виклику `app.run()`. Це запобігає автоматичному відображенню детальної інформації про помилки у продакшені. Режим налагодження слід використовувати лише для розробки.",aligned,0,1,1,debug прибрано; побічно втрачено extra_files
+66,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/good/vulpy.py,53,"def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt')
+
+","def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=False, host='127.0.1.1', port=5001, extra_files='csp.txt')","1. Прозорість: Проблема полягає в тому, що додаток Flask запущено в режимі debug=True. Це може призвести до витоку конфіденційної інформації, оскільки вхідні дані, середовище виконання та інші деталі будуть відображені в консолі.
+
+2. Обґрунтування: Включення debug=True в конфігурацію Flask може розкрити важливу інформацію про додаток, таку як SQL-запити, дані сеансів, помилки та інший внутрішній стан. Це може бути використано зловмисниками для отримання доступу до додатку або для виявлення вразливостей.
+
+3. Дієвість: Щоб усунути цю вразливість, слід вимкнути debug=True в конфігурації Flask. Замість цього, слід використовувати Flask configuration variables або налаштувати 'debug' за допомогою змінних середовища.
+
+Виправлений код:
+
+Пояснення:
+У виправленому коді debug=True встановлено на False, що запобігає відображенню внутрішньої інформації в консолі. Замість цього, додаток буде працювати в безпечному режимі без розкриття конфіденційних даних.",aligned,0,1,1,debug=False
+67,gemma4:e2b,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_post.py,16,"    if not api_key_file.exists():
+
+        username = click.prompt('Username')
+        password = click.prompt('Password', hide_input=True)
+
+        r = requests.post('http://127.0.1.1:5000/api/key', json={'username':username, 'password':password})
+
+        if r.status_code != 200:
+            click.echo('Invalid authentication or other error ocurred. Status code: {}'.format(r.status_code))
+            return False
+
+","if not api_key_file.exists():
+
+        username = click.prompt('Username')
+        password = click.prompt('Password', hide_input=True)
+
+        r = requests.post('https://127.0.1.1:5000/api/key', json={'username':username, 'password':password})
+
+        if r.status_code != 200:
+            click.echo('Invalid authentication or other error ocurred. Status code: {}'.format(r.status_code))
+            return False","1. Прозорість: Проблема виявлена у рядку, де виконується HTTP-запит до сервера. Використання протоколу `http://` замість `https://` створює небезпеку. Це дозволяє перехоплення даних у відкритій мережі.
+2. Обґрунтування: Запит, виконаний через HTTP, передає дані (логін та пароль) у незашифрованому вигляді. Це означає, що будь-який зловмисник, який перехоплює мережевий трафік (наприклад, через Man-in-the-Middle атаку), може легко отримати доступ до конфіденційних облікових даних. Це порушує конфіденційність даних.
+3. Дієвість:
+
+Виправлення замінює `http://` на `https://`, забезпечуючи шифрування передачі даних. Це запобігає перехопленню облікових даних під час передачі мережею.",aligned,0,1,1,https
+67,hf.co/INSAIT-Institute/MamayLM-Gemma-3-4B-IT-v1.0-GGUF:Q4_K_M,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_post.py,16,"    if not api_key_file.exists():
+
+        username = click.prompt('Username')
+        password = click.prompt('Password', hide_input=True)
+
+        r = requests.post('http://127.0.1.1:5000/api/key', json={'username':username, 'password':password})
+
+        if r.status_code != 200:
+            click.echo('Invalid authentication or other error ocurred. Status code: {}'.format(r.status_code))
+            return False
+
+","if not api_key_file.exists():
+
+        username = click.prompt('Username')
+        password = click.prompt('Password', hide_input=True)
+
+        r = requests.post('https://127.0.1.1:5000/api/key', json={'username':username, 'password':password})
+
+        if r.status_code != 200:
+            click.echo('Invalid authentication or other error ocurred. Status code: {}'.format(r.status_code))
+            return False","1. Прозорість: Проблема знаходиться в рядку `r = requests.post('http://127.0.1.1:5000/api/key', json={'username':username, 'password':password})`. Цей рядок використовує незахищене з'єднання HTTP, що робить його вразливим до перехоплення даних.
+
+2. Обґрунтування: Використання незахищеного HTTP-з'єднання дозволяє будь-кому на одній мережі з сервером перехопити та прочитати дані, що передаються. Це може призвести до розкриття конфіденційної інформації, такої як облікові дані користувачів, паролі та інші секрети.
+
+3. Дієвість: Виправлений код:
+    
+    Замінено `http://` на `https://`, що забезпечує захищене з'єднання HTTPS. Це запобігає перехопленню даних та захищає конфіденційну інформацію.",aligned,0,1,1,https

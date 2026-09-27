@@ -1,0 +1,42 @@
+[00.17][WARNING](ca-certs): Ignored 1 trust anchors.
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1809 files with 565 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin      Rules                                                                
+ ─────────────────────────────        ───────────────────                                                               
+  <multilang>      16    1809          Community     565                                                                
+  ts               71     507                                                                                           
+  html              1     251                                                                                           
+  python          151     158                                                                                           
+  json              3     114                                                                                           
+  yaml             24     111                                                                                           
+  js               65      64                                                                                           
+  solidity          1      17                                                                                           
+  terraform        60      11                                                                                           
+  bash              1      11                                                                                           
+  dockerfile        4       8                                                                                           
+                                                                                                                        
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 150 (150 blocking)
+ • Rules run: 332
+ • Targets scanned: 1809
+ • Parsed lines: ~99.8%
+ • Scan skipped: 
+   ◦ Files larger than  files 1.0 MB: 4
+   ◦ Files matching .semgrepignore patterns: 24
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 332 rules on 1809 files: 150 findings.
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+
+📢 Too many findings? Try Semgrep Pro for more powerful queries and less noise.
+   See https://sg.run/false-positives.

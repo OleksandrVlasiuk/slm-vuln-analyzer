@@ -1,0 +1,637 @@
+﻿finding_id,rule_id,cwe,file,start_line,message,snippet_clean,is_true_positive,note
+1,javascript.express.security.audit.express-check-directory-listing.express-check-directory-listing,CWE-548,corpus/juice-shop/server.ts,292,"Directory listing/indexing is enabled, which may lead to disclosure of sensitive directories and files. It is recommended to disable directory listing unless it is a public resource. If you need directory listing, ensure that sensitive files are inaccessible when querying the resource.","                                                                                                             
+  app.use('/ftp', serveIndexMiddleware, serveIndex('ftp', { icons: true }))                                                         
+  app.use('/ftp(?!/quarantine)/:file', servePublicFiles())                                                         
+  app.use('/ftp/quarantine/:file', serveQuarantineFiles())                                                            
+
+  app.use('/.well-known', serveIndexMiddleware, serveIndex('.well-known', { icons: true, view: 'details' }))
+  app.use('/.well-known', express.static('.well-known'))
+
+                                          
+  app.use('/encryptionkeys', serveIndexMiddleware, serveIndex('encryptionkeys', { icons: true, view: 'details' }))
+  app.use('/encryptionkeys/:file', serveKeyFiles())
+",1,
+2,javascript.express.security.audit.express-res-sendfile.express-res-sendfile,CWE-73,corpus/juice-shop/routes/quarantineServer.ts,14,"The application processes user-input, this is passed to res.sendFile which can allow an attacker to arbitrarily read files on the system through path traversal. It is recommended to perform input validation in addition to canonicalizing the path. This allows you to validate the path against the intended directory it should be accessing.","export function serveQuarantineFiles () {
+  return ({ params, query }: Request, res: Response, next: NextFunction) => {
+    const file = params.file
+
+    if (!file.includes('/')) {
+      res.sendFile(path.resolve('ftp/quarantine/', file))
+    } else {
+      res.status(403)
+      next(new Error('File names cannot contain forward slashes!'))
+    }
+  }
+",0,перевірка !file.includes('/') блокує обхід каталогів; шлях не виходить за ftp/quarantine — FP
+4,python.django.security.injection.request-data-write.request-data-write,CWE-93,corpus/pygoat/introduction/apis.py,130,"Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.","@csrf_exempt
+def A6_disscussion_api_2(request):
+    if request.method != 'POST':
+        return JsonResponse({""message"":""method not allowed""},status = 405)
+    try:
+        code = request.POST.get('code')
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, ""playground/A6/utility.py"")
+        f = open(filename,""w"")
+        f.write(code)
+        f.close()
+    except:
+        return JsonResponse({""message"":""missing code""},status = 400)
+    return JsonResponse({""message"":""success""},status = 200)",1,довільний запис у .py -> RCE
+5,javascript.express.security.audit.express-session-hardcoded-secret.express-session-hardcoded-secret,CWE-798,corpus/dvna/server.js,24,"A hard-coded credential was detected. It is not recommended to store credentials in source-code, as this risks secrets being leaked and used by either an internal or external malicious adversary. It is recommended to use environment variables to securely provide credentials or retrieve credentials from a secure vault or HSM (Hardware Security Module).","                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))
+
+",1,
+6,javascript.express.security.audit.express-cookie-settings.express-cookie-session-default-name,CWE-522,corpus/NodeGoat/server.js,78,Don’t use the default session cookie name Using the default session cookie name can open your app to attacks. The security issue posed is similar to X-Powered-By: a potential attacker can use it to fingerprint the server and target attacks accordingly.,"                                  
+        extended: false
+    }));
+
+                                                         
+    app.use(session({
+                            
+                                                           
+            
+        secret: cookieSecret,
+                                       
+        saveUninitialized: true,
+        resave: true
+          
+                                          
+                                  
+                         
+          
+
+          
+                           
+                             
+                 
+                          
+                                                                    
+                           
+         
+          
+
+    }));
+
+      
+                        
+                                     
+                    
+",1,"стандартна назва кукі — слабкість низького ризику, але справжня"
+7,python.lang.security.audit.md5-used-as-password.md5-used-as-password,CWE-327,corpus/pygoat/introduction/mitre.py,161,It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.,"    if request.method == 'GET':
+        return render(request, 'mitre/csrf_lab_login.html')
+    elif request.method == 'POST':
+        password = request.POST.get('password')
+        username = request.POST.get('username')
+        password = md5(password.encode()).hexdigest()
+        User = CSRF_user_tbl.objects.filter(username=username, password=password)
+        if User:
+            payload ={
+                'username': username,
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=300),
+",1,
+8,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,123,"Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.","        pass
+    
+    return redirect(url_for('lab'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)                                                 ",1,
+9,javascript.lang.security.audit.code-string-concat.code-string-concat,CWE-95,corpus/NodeGoat/app/routes/contributions.js,33,Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.,"    this.handleContributionsUpdate = (req, res, next) => {
+
+                              
+                                                 
+        const preTax = eval(req.body.preTax);
+        const afterTax = eval(req.body.afterTax);
+        const roth = eval(req.body.roth);
+
+          
+                                                                              
+                                                 
+",1,
+10,python.django.security.injection.code.user-eval.user-eval,CWE-95,corpus/pygoat/introduction/mitre.py,217,"Found user data in a call to 'eval'. This is extremely dangerous because it can enable an attacker to execute arbitrary remote code on the system. Instead, refactor your code to not use 'eval' and instead use a safe library for the specific functionality you need.","
+                           
+@csrf_exempt
+def mitre_lab_25_api(request):
+    if request.method == ""POST"":
+        expression = request.POST.get('expression')
+        result = eval(expression)
+        return JsonResponse({'result': result})
+    else:
+        return redirect('/mitre/25/lab/')
+
+
+",1,
+11,javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection,CWE-89,corpus/juice-shop/data/static/codefixes/unionSqlInjectionChallenge_1.ts,6,"Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements.","export function searchProducts () {
+  return (req: Request, res: Response, next: NextFunction) => {
+    let criteria: any = req.query.q === 'undefined' ? '' : req.query.q ?? ''
+    criteria = (criteria.length <= 200) ? criteria : criteria.substring(0, 200)
+    criteria.replace(/""|'|;|and|or/i, """")
+    models.sequelize.query(`SELECT * FROM Products WHERE ((name LIKE '%${criteria}%' OR description LIKE '%${criteria}%') AND deletedAt IS NULL) ORDER BY name`)
+      .then(([products]: any) => {
+        const dataString = JSON.stringify(products)
+        for (let i = 0; i < products.length; i++) {
+          products[i].name = req.__(products[i].name)
+          products[i].description = req.__(products[i].description)
+",1,"файл codefixes — навчальний приклад вразливого варіанту, конкатенація реальна"
+12,python.django.security.injection.command.subprocess-injection.subprocess-injection,CWE-78,corpus/pygoat/challenge/views.py,81,"Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.","            return JsonResponse({'message': 'failed', 'status': '500'})
+
+        user_chal.is_live = False
+        user_chal.save()
+        command = f""docker stop {user_chal.container_id}""
+        process = subprocess.Popen(command.split("" ""), stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        return JsonResponse({'message': 'success', 'status': '200'})
+    
+    def put(self, request, challange):
+                                        
+",1,"container_id з БД; split(' ') без shell знижує ризик, але ін'єкція аргументів можлива"
+13,javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-httponly,CWE-522,corpus/NodeGoat/server.js,78,"Default session middleware settings: `httpOnly` not set. It ensures the cookie is sent only over HTTP(S), not client JavaScript, helping to protect against cross-site scripting attacks.","                                  
+        extended: false
+    }));
+
+                                                         
+    app.use(session({
+                            
+                                                           
+            
+        secret: cookieSecret,
+                                       
+        saveUninitialized: true,
+        resave: true
+          
+                                          
+                                  
+                         
+          
+
+          
+                           
+                             
+                 
+                          
+                                                                    
+                           
+         
+          
+
+    }));
+
+      
+                        
+                                     
+                    
+",1,
+14,javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-path,CWE-522,corpus/dvna/server.js,23,"Default session middleware settings: `path` not set. It indicates the path of the cookie; use it to compare against the request path. If this and domain match, then send the cookie in the request.","
+                                   
+                             
+
+                    
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}))
+
+                      
+app.use(passport.initialize())
+app.use(passport.session())
+
+",1,path не заданий — слабкість низького ризику
+15,javascript.express.security.audit.express-res-sendfile.express-res-sendfile,CWE-73,corpus/juice-shop/routes/keyServer.ts,14,"The application processes user-input, this is passed to res.sendFile which can allow an attacker to arbitrarily read files on the system through path traversal. It is recommended to perform input validation in addition to canonicalizing the path. This allows you to validate the path against the intended directory it should be accessing.","export function serveKeyFiles () {
+  return ({ params }: Request, res: Response, next: NextFunction) => {
+    const file = params.file
+
+    if (!file.includes('/')) {
+      res.sendFile(path.resolve('encryptionkeys/', file))
+    } else {
+      res.status(403)
+      next(new Error('File names cannot contain forward slashes!'))
+    }
+  }
+",0,та сама перевірка на '/' — FP
+16,javascript.lang.security.audit.code-string-concat.code-string-concat,CWE-95,corpus/NodeGoat/app/routes/contributions.js,32,Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.,"
+    this.handleContributionsUpdate = (req, res, next) => {
+
+                              
+                                                 
+        const preTax = eval(req.body.preTax);
+        const afterTax = eval(req.body.afterTax);
+        const roth = eval(req.body.roth);
+
+          
+                                                                              
+",1,
+18,javascript.express.security.audit.express-res-sendfile.express-res-sendfile,CWE-73,corpus/juice-shop/routes/fileServer.ts,32,"The application processes user-input, this is passed to res.sendFile which can allow an attacker to arbitrarily read files on the system through path traversal. It is recommended to perform input validation in addition to canonicalizing the path. This allows you to validate the path against the intended directory it should be accessing.","      file = security.cutOffPoisonNullByte(file)
+
+      challengeUtils.solveIf(challenges.directoryListingChallenge, () => { return file.toLowerCase() === 'acquisitions.md' })
+      verifySuccessfulPoisonNullByteExploit(file)
+
+      res.sendFile(path.resolve('ftp/', file))
+    } else {
+      res.status(403)
+      next(new Error('Only .md and .pdf files are allowed!'))
+    }
+  }
+",1,cutOffPoisonNullByte не блокує ../; обхід можливий
+19,javascript.jsonwebtoken.security.jwt-hardcode.hardcoded-jwt-secret,CWE-798,corpus/juice-shop/lib/insecurity.ts,54,"A hard-coded credential was detected. It is not recommended to store credentials in source-code, as this risks secrets being leaked and used by either an internal or external malicious adversary. It is recommended to use environment variables to securely provide credentials or retrieve credentials from a secure vault or HSM (Hardware Security Module).","  return str
+}
+
+export const isAuthorized = () => expressJwt(({ secret: publicKey }) as any)
+export const denyAll = () => expressJwt({ secret: '' + Math.random() } as any)
+export const authorize = (user = {}) => jwt.sign(user, privateKey, { expiresIn: '6h', algorithm: 'RS256' })
+export const verify = (token: string) => token ? (jws.verify as ((token: string, secret: string) => boolean))(token, publicKey) : false
+export const decode = (token: string) => { return jws.decode(token)?.payload }
+
+export const sanitizeHtml = (html: string) => sanitizeHtmlLib(html)
+export const sanitizeLegacy = (input = '') => input.replace(/<(?:\w+)\W+?[\w]/gi, '')
+",0,"expressJwt({secret: ''+Math.random()}) — це denyAll, випадкове значення, не захардкожений секрет — FP"
+21,javascript.express.security.audit.express-check-directory-listing.express-check-directory-listing,CWE-548,corpus/juice-shop/server.ts,296,"Directory listing/indexing is enabled, which may lead to disclosure of sensitive directories and files. It is recommended to disable directory listing unless it is a public resource. If you need directory listing, ensure that sensitive files are inaccessible when querying the resource.","
+  app.use('/.well-known', serveIndexMiddleware, serveIndex('.well-known', { icons: true, view: 'details' }))
+  app.use('/.well-known', express.static('.well-known'))
+
+                                          
+  app.use('/encryptionkeys', serveIndexMiddleware, serveIndex('encryptionkeys', { icons: true, view: 'details' }))
+  app.use('/encryptionkeys/:file', serveKeyFiles())
+
+                                                                                               
+  app.use('/support/logs', serveIndexMiddleware, serveIndex('logs', { icons: true, view: 'details' }))                                                            
+  app.use('/support/logs', verify.accessControlChallenges())                               
+",1,
+23,python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host,CWE-668,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,123,Running flask app with host 0.0.0.0 could expose the server publicly.,"        pass
+    
+    return redirect(url_for('lab'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)                                                 ",1,"0.0.0.0 у лабораторному Docker-образі, але за правилом — TP"
+24,javascript.express.security.audit.express-open-redirect.express-open-redirect,CWE-601,corpus/dvna/core/appHandler.js,188,"The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website.","	})
+}
+
+module.exports.redirect = function (req, res) {
+	if (req.query.url) {
+		res.redirect(req.query.url)
+	} else {
+		res.send('invalid redirect url')
+	}
+}
+
+",1,
+25,javascript.express.security.audit.express-open-redirect.express-open-redirect,CWE-601,corpus/NodeGoat/app/routes/index.js,72,"The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website.","    app.post(""/memos"", isLoggedIn, memosHandler.addMemos);
+
+                                                  
+    app.get(""/learn"", isLoggedIn, (req, res) => {
+                                                                                    
+        return res.redirect(req.query.url);
+    });
+
+                    
+    app.get(""/research"", isLoggedIn, researchHandler.displayResearch);
+
+",1,
+26,javascript.lang.security.audit.code-string-concat.code-string-concat,CWE-95,corpus/juice-shop/routes/userProfile.ts,65,Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.,"        const code = username?.substring(2, username.length - 1)
+        try {
+          if (!code) {
+            throw new Error('Username is null')
+          }
+          username = eval(code)                               
+        } catch (err) {
+          username = '\\' + username
+        }
+      } else {
+        username = '\\' + username
+",1,eval над підрядком імені користувача — реальна вразливість juice-shop
+27,javascript.express.security.audit.express-open-redirect.express-open-redirect,CWE-601,corpus/juice-shop/routes/redirect.ts,18,"The application redirects to a URL specified by user-supplied input `query` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website.","  return ({ query }: Request, res: Response, next: NextFunction) => {
+    const toUrl: string = query.to as string
+    if (security.isRedirectAllowed(toUrl)) {
+      challengeUtils.solveIf(challenges.redirectCryptoCurrencyChallenge, () => { return toUrl === 'https://explorer.dash.org/address/Xr556RzuwX6hg5EGpkybbv5RanJoZN17kW' || toUrl === 'https://blockchain.info/address/1AbKfgvw9psQ41NbLi8kufDQTezwG8DRZm' || toUrl === 'https://etherscan.io/address/0x0f933ab9fcaaa782d0279c300d73750e1311eae6' })
+      challengeUtils.solveIf(challenges.redirectChallenge, () => { return isUnintendedRedirect(toUrl) })
+      res.redirect(toUrl)
+    } else {
+      res.status(406)
+      next(new Error('Unrecognized target URL for redirect: ' + toUrl))
+    }
+  }
+",0,isRedirectAllowed перевіряє список дозволених — FP для цього рядка
+29,python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5,CWE-327,corpus/pygoat/dockerized_labs/broken_auth_lab/app.py,86,Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is therefore not suitable as a cryptographic signature. Use SHA256 or SHA3 instead.,"    
+                                                 
+    for username, user_data in users.items():
+        if user_data['email'] == email:
+                                                      
+            token = hashlib.md5(f""{email}:{datetime.now()}"".encode()).hexdigest()
+            password_reset_tokens[token] = username
+            
+                                                             
+                                                   
+            flash(f'Password reset link: /reset/{token}')
+",1,md5 для токена скидання пароля
+31,javascript.express.security.audit.express-libxml-noent.express-libxml-noent,CWE-611,corpus/dvna/core/appHandler.js,235,The libxml library processes user-input with the `noent` attribute is set to `true` which can lead to being vulnerable to XML External Entities (XXE) type attacks. It is recommended to set `noent` to `false` when using this feature to ensure you are protected.,"	}
+}
+
+module.exports.bulkProducts =  function(req, res) {
+	if (req.files.products && req.files.products.mimetype=='text/xml'){
+		var products = libxmljs.parseXmlString(req.files.products.data.toString('utf8'), {noent:true,noblanks:true})
+		products.root().childNodes().forEach( product => {
+			var newProduct = new db.Product()
+			newProduct.name = product.childNodes()[0].text()
+			newProduct.code = product.childNodes()[1].text()
+			newProduct.tags = product.childNodes()[2].text()
+",1,
+33,javascript.express.security.audit.express-third-party-object-deserialization.express-third-party-object-deserialization,CWE-502,corpus/dvna/core/appHandler.js,218,The following function call serialize.unserialize accepts user controlled data which can result in Remote Code Execution (RCE) through Object Deserialization. It is recommended to use secure data processing alternatives such as JSON.parse() and Buffer.from().,"}
+
+module.exports.bulkProductsLegacy = function (req,res){
+	                            
+	if(req.files.products){
+		var products = serialize.unserialize(req.files.products.data.toString('utf8'))
+		products.forEach( function (product) {
+			var newProduct = new db.Product()
+			newProduct.name = product.name
+			newProduct.code = product.code
+			newProduct.tags = product.tags
+",1,
+35,python.jwt.security.jwt-hardcode.jwt-python-hardcoded-secret,CWE-522,corpus/pygoat/introduction/mitre.py,169,Hardcoded JWT secret or private key is used. This is a Insufficiently Protected Credentials weakness: https://cwe.mitre.org/data/definitions/522.html Consider using an appropriate security mechanism to protect the credentials (e.g. keeping secrets in environment variables),"            payload ={
+                'username': username,
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=300),
+                'iat': datetime.datetime.utcnow()
+            }
+            cookie = jwt.encode(payload, 'csrf_vulneribility', algorithm='HS256')
+            response = redirect(""/mitre/9/lab/transaction"")
+            response.set_cookie('auth_cookiee', cookie)
+            return response
+        else :
+            return redirect('/mitre/9/lab/login')
+",1,
+36,javascript.express.security.audit.express-res-sendfile.express-res-sendfile,CWE-73,corpus/juice-shop/routes/logfileServer.ts,14,"The application processes user-input, this is passed to res.sendFile which can allow an attacker to arbitrarily read files on the system through path traversal. It is recommended to perform input validation in addition to canonicalizing the path. This allows you to validate the path against the intended directory it should be accessing.","export function serveLogFiles () {
+  return ({ params }: Request, res: Response, next: NextFunction) => {
+    const file = params.file
+
+    if (!file.includes('/')) {
+      res.sendFile(path.resolve('logs/', file))
+    } else {
+      res.status(403)
+      next(new Error('File names cannot contain forward slashes!'))
+    }
+  }
+",0,перевірка на '/' блокує обхід — FP
+40,python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host,CWE-668,corpus/pygoat/dockerized_labs/insec_des_lab/main.py,51,Running flask app with host 0.0.0.0 could expose the server publicly.,"        return render_template('result.html', message=message)
+    except Exception as e:
+        return render_template('result.html', message=f""Error: {str(e)}"")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+
+    ",1,
+41,python.django.security.injection.request-data-write.request-data-write,CWE-93,corpus/pygoat/introduction/apis.py,65,"Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.","                           
+def log_function_checker(request):
+    if request.method == 'POST':
+        csrf_token = request.POST.get(""csrfmiddlewaretoken"")
+        log_code = request.POST.get('log_code')
+        api_code = request.POST.get('api_code')
+        dirname = os.path.dirname(__file__)
+        log_filename = os.path.join(dirname, ""playground/A9/main.py"")
+        api_filename = os.path.join(dirname, ""playground/A9/api.py"")
+        f = open(log_filename,""w"")
+        f.write(log_code)
+        f.close()
+        f = open(api_filename,""w"")
+        f.write(api_code)
+        f.close()
+                                                        
+        f = open('test.log', 'w')
+        f.write("""")
+        f.close()
+",1,
+42,python.django.security.injection.request-data-write.request-data-write,CWE-93,corpus/pygoat/introduction/apis.py,64,"Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.","@csrf_exempt
+                           
+def log_function_checker(request):
+    if request.method == 'POST':
+        csrf_token = request.POST.get(""csrfmiddlewaretoken"")
+        log_code = request.POST.get('log_code')
+        api_code = request.POST.get('api_code')
+        dirname = os.path.dirname(__file__)
+        log_filename = os.path.join(dirname, ""playground/A9/main.py"")
+        api_filename = os.path.join(dirname, ""playground/A9/api.py"")
+        f = open(log_filename,""w"")
+        f.write(log_code)
+        f.close()
+        f = open(api_filename,""w"")
+        f.write(api_code)
+        f.close()
+                                                        
+",1,
+43,javascript.express.security.audit.express-check-directory-listing.express-check-directory-listing,CWE-548,corpus/juice-shop/server.ts,268,"Directory listing/indexing is enabled, which may lead to disclosure of sensitive directories and files. It is recommended to disable directory listing unless it is a public resource. If you need directory listing, ensure that sensitive files are inaccessible when querying the resource.","    }
+    next()
+  }
+
+                                          
+  app.use('/infrastructure', serveIndexMiddleware, serveIndex('infrastructure', { icons: true, view: 'details', filter: (filename) => filename !== 'README.md' }))
+  app.use('/infrastructure', verify.accessControlChallenges())
+  app.use('/infrastructure', (req: Request, res: Response, next: NextFunction) => {
+    const filePath = path.resolve('infrastructure', path.normalize(req.path).replace(/^[\\/]+/, ''))
+    if (!filePath.startsWith(path.resolve('infrastructure')) || filePath.endsWith('README.md')) {
+      return res.status(403).end()
+",0,нижче явна перевірка filePath.startsWith і заборона README.md — FP
+46,javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection,CWE-89,corpus/dvna/core/appHandler.js,11,"Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements.","var serialize = require(""node-serialize"")
+const Op = db.Sequelize.Op
+
+module.exports.userSearch = function (req, res) {
+	var query = ""SELECT name,id FROM Users WHERE login='"" + req.body.login + ""'"";
+	db.sequelize.query(query, {
+		model: db.User
+	}).then(user => {
+		if (user.length) {
+			var output = {
+				user: {
+",1,
+48,javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection,CWE-89,corpus/juice-shop/data/static/codefixes/dbSchemaChallenge_1.ts,5,"Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements.","export function searchProducts () {
+  return (req: Request, res: Response, next: NextFunction) => {
+    let criteria: any = req.query.q === 'undefined' ? '' : req.query.q ?? ''
+    criteria = (criteria.length <= 200) ? criteria : criteria.substring(0, 200)
+    models.sequelize.query(""SELECT * FROM Products WHERE ((name LIKE '%""+criteria+""%' OR description LIKE '%""+criteria+""%') AND deletedAt IS NULL) ORDER BY name"")
+      .then(([products]: any) => {
+        const dataString = JSON.stringify(products)
+        for (let i = 0; i < products.length; i++) {
+          products[i].name = req.__(products[i].name)
+          products[i].description = req.__(products[i].description)
+",1,
+49,python.lang.security.audit.subprocess-shell-true.subprocess-shell-true,CWE-78,corpus/pygoat/introduction/mitre.py,233,"Found 'subprocess' function 'Popen' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.","@authentication_decorator
+def mitre_lab_17(request):
+    return render(request, 'mitre/mitre_lab_17.html')
+
+def command_out(command):
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process.communicate()
+    
+
+@csrf_exempt
+def mitre_lab_17_api(request):
+",1,
+51,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/bad/vulpy.py,55,"top-level app.run(...) is ignored by flask. Consider putting app.run(...) behind a guard, like inside a function","    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+
+app.run(debug=True, host='127.0.1.1', port=5000, extra_files='csp.txt')
+",1,"top-level app.run — радше стиль, ніж вразливість, але правило спрацювало правильно"
+52,python.jwt.security.jwt-hardcode.jwt-python-hardcoded-secret,CWE-522,corpus/vulpy/good/libapi.py,20,Hardcoded JWT secret or private key is used. This is a Insufficiently Protected Credentials weakness: https://cwe.mitre.org/data/definitions/522.html Consider using an appropriate security mechanism to protect the credentials (e.g. keeping secrets in environment variables),"    if login:
+        if not libuser.login(username, password):
+            return None
+
+    now = time()
+    token = jwt.encode({
+        'username': username,
+        'nbf': now,
+        'exp': now + not_after
+        }, secret, algorithm='HS256').decode()
+
+    return token
+
+
+def authenticate(request):
+",1,
+53,python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args,CWE-78,corpus/vulpy/bad/brute.py,21,Detected subprocess function 'run' with user controlled data. A malicious actor could leverage this to perform command injection. You may consider using 'shlex.quote()'.,"    '12345678',
+    '123123123',
+]
+
+for password in passwords:
+    result = subprocess.run([program, username, password], stdout=subprocess.DEVNULL)
+    if result.returncode == 0:
+        print(""cracked! user: {} password: {}"".format(username, password))
+        break
+
+",0,"program/username задані в самому скрипті, не зовнішній ввід; аргументи списком без shell — FP"
+54,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/bad/vulpy.py,55,"Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.","    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+
+app.run(debug=True, host='127.0.1.1', port=5000, extra_files='csp.txt')
+",1,
+55,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/good/httpbrute.py,22,"Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the network and be able to obtain sensitive information. Use 'https://' instead.","    '12345678',
+    'SuperSecret',
+]
+
+for password in passwords:
+    response = requests.post(URL, data = {'username': username, 'password': password})
+    if 'HOME' in response.text:
+        print('cracked!', username, password)
+        break
+
+",0,"у фрагменті немає http-літерала, URL визначено поза вікном; за рядком не підтверджується — FP"
+56,python.cryptography.security.mode-without-authentication.crypto-mode-without-authentication,CWE-327,corpus/vulpy/utils/aes-decrypt.py,24,An encryption mode of operation is being used without proper message authentication. This can potentially result in the encrypted content to be decrypted by an attacker. Consider instead use an AEAD mode of operation like GCM.,"
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(key.encode())
+    key_digest = digest.finalize()
+
+    cipher = Cipher(algorithms.AES(key_digest), modes.CFB(unhexlify(iv)), backend=default_backend())
+    decryptor = cipher.decryptor()
+    plain = decryptor.update(unhexlify(message)) + decryptor.finalize()
+
+    print(plain.decode(errors='ignore'))
+
+",1,
+57,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/good/vulpy.py,53,"top-level app.run(...) is ignored by flask. Consider putting app.run(...) behind a guard, like inside a function","def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt')
+
+",1,
+58,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/good/vulpy-ssl.py,29,"Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.","
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+",1,
+59,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_post.py,30,"Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the network and be able to obtain sensitive information. Use 'https://' instead.","
+        with api_key_file.open('w') as outfile:
+            outfile.write(api_key)
+
+    api_key = api_key_file.open().read()
+    r = requests.post('http://127.0.1.1:5000/api/post', json={'text':message}, headers={'X-APIKEY': api_key})
+    print(r.text)
+
+
+if __name__ == '__main__':
+    cmd_api_client()
+",1,
+60,python.lang.security.audit.md5-used-as-password.md5-used-as-password,CWE-327,corpus/dvpwa/sqli/dao/user.py,41,It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.,"                (username,),
+            )
+            return User.from_raw(await cur.fetchone())
+
+    def check_password(self, password: str):
+        return self.pwd_hash == md5(password.encode('utf-8')).hexdigest()
+",1,
+61,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/good/vulpy-ssl.py,29,"top-level app.run(...) is ignored by flask. Consider putting app.run(...) behind a guard, like inside a function","
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+",1,
+62,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/bad/vulpy-ssl.py,29,"Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.","
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+",1,
+63,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_list.py,10,"Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the network and be able to obtain sensitive information. Use 'https://' instead.","
+@click.command()
+@click.argument('username')
+def cmd_api_client(username):
+
+    r = requests.get('http://127.0.1.1:5000/api/post/{}'.format(username))
+    if r.status_code != 200:
+        click.echo('Some error ocurred. Status Code: {}'.format(r.status_code))
+        print(r.text)
+        return False
+
+",1,
+64,python.cryptography.security.mode-without-authentication.crypto-mode-without-authentication,CWE-327,corpus/vulpy/utils/aes-encrypt.py,28,An encryption mode of operation is being used without proper message authentication. This can potentially result in the encrypted content to be decrypted by an attacker. Consider instead use an AEAD mode of operation like GCM.,"    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(key.encode())
+    key_digest = digest.finalize()
+
+
+    cipher = Cipher(algorithms.AES(key_digest), modes.CFB(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    encrypted = encryptor.update(message.encode()) + encryptor.finalize()
+
+    print(hexlify(iv).decode(), hexlify(encrypted).decode())
+
+",1,
+65,python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly,CWE-668,corpus/vulpy/bad/vulpy-ssl.py,29,"top-level app.run(...) is ignored by flask. Consider putting app.run(...) behind a guard, like inside a function","
+@app.before_request
+def before_request():
+    g.session = libsession.load(request)
+
+app.run(debug=True, host='127.0.1.1', ssl_context=('/tmp/acme.cert', '/tmp/acme.key'))
+",1,
+66,python.flask.security.audit.debug-enabled.debug-enabled,CWE-489,corpus/vulpy/good/vulpy.py,53,"Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.","def add_csp_headers(response):
+    if csp:
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+app.run(debug=True, host='127.0.1.1', port=5001, extra_files='csp.txt')
+
+",1,
+67,python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http,CWE-319,corpus/vulpy/bad/api_post.py,16,"Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the network and be able to obtain sensitive information. Use 'https://' instead.","    if not api_key_file.exists():
+
+        username = click.prompt('Username')
+        password = click.prompt('Password', hide_input=True)
+
+        r = requests.post('http://127.0.1.1:5000/api/key', json={'username':username, 'password':password})
+
+        if r.status_code != 200:
+            click.echo('Invalid authentication or other error ocurred. Status code: {}'.format(r.status_code))
+            return False
+
+",1,

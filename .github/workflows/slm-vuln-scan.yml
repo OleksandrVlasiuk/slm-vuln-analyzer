@@ -1,0 +1,56 @@
+# Приклад CI/CD-інтеграції SLM Vulnerability Analyzer (scripts/ci_scan.py).
+#
+# ВАЖЛИВО: runs-on: [self-hosted] — НЕ github-hosted runner. XAI-пояснення
+# генерує локальна Ollama (на цьому ж runner'і чи в тій самій приватній
+# мережі); GitHub-хмарний runner не має доступу до Ollama, і головне —
+# відправляти фрагменти коду вашого репозиторію на будь-який зовнішній
+# сервіс для пояснення небажано з міркувань приватності/конфіденційності
+# коду. Тому весь скан (Semgrep + SLM) має виконуватись на інфраструктурі,
+# яку контролює команда.
+#
+# Передумови на self-hosted runner'і:
+#   - Python 3 + requirements.txt (pip install -r requirements.txt)
+#   - Semgrep у PATH (pip install semgrep або окремий бінарник)
+#   - Ollama запущена й доступна за OLLAMA_HOST (.env), потрібна модель
+#     уже завантажена (ollama pull gemma4:e2b) — тягнути модель у кожному
+#     запуску CI довго й марнотратно
+#   - .env з SEMGREP_CONFIG/TEMPERATURE (ті самі, що й у продукті)
+
+name: SLM Vulnerability Scan
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  slm-scan:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Встановити Python-залежності
+        run: pip install -r requirements.txt
+
+      - name: Semgrep + XAI-пояснення (SLM)
+        id: slm-scan
+        # fail-on=any -> ненульовий код виходу при знайдених вразливостях;
+        # continue-on-error, бо SARIF треба вивантажити НАВІТЬ якщо job
+        # мав би впасти через знахідки (інакше upload-sarif не виконається).
+        continue-on-error: true
+        run: >
+          python scripts/ci_scan.py
+          --path .
+          --model gemma4:e2b
+          --out ci_report.sarif
+          --fail-on any
+
+      - name: Вивантажити SARIF у GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ci_report.sarif
+
+      - name: Провалити job, якщо були знахідки
+        # ci_scan.py вже повернув 1 при --fail-on any; тут явно зупиняємо
+        # pipeline ПІСЛЯ того, як SARIF уже вивантажено вище.
+        if: steps.slm-scan.outcome == 'failure'
+        run: exit 1

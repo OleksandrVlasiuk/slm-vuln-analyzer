@@ -1,0 +1,51 @@
+# Node & Next.js
+node_modules/
+.next/
+out/
+build/
+.env*
+!.env.example
+
+# Конфігурація IDE
+.idea/
+
+# Python & FastAPI
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.db
+backups/
+
+# Вихідні файли бенчмарків (scripts/bench.py)
+*.csv
+!data/findings.csv
+!data/manual_review.csv
+!data/tp_fp_review.csv
+
+# Клоновані репозиторії для формування датасету (див. data/SOURCES.md)
+corpus/
+
+# Клоновані репозиторії для навчальної вибірки дистиляції (див. data/train/SOURCES.md)
+train_corpus/
+
+# Навчальна вибірка дистиляції — дані не комітяться, лише скрипти й SOURCES.md
+data/train/*
+!data/train/SOURCES.md
+
+# Вихідні файли bench.py/evaluate.py
+results/
+
+# Вихідні звіти scripts/ci_scan.py
+*.sarif
+
+# Службові файли інструментів-асистентів
+.claude/
+CLAUDE.md
+logs.txt
+
+# Архіви з даними (не комітяться — див. data/SOURCES.md)
+distill_dataset.zip
+stage5.zip
+thesis_data_backup.zip
